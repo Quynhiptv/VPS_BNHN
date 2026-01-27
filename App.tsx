@@ -12,7 +12,9 @@ import {
   Lock,
   PieChart as PieChartIcon,
   RefreshCcw,
-  Clock
+  Clock,
+  LogOut,
+  ShieldCheck
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -35,6 +37,7 @@ import {
 
 const SUMMARY_SHEET_GID = '1181732765';
 const DEFAULT_SPREADSHEET_ID = '1RLhYYa6thMh_60atGO4bmbXI7j21vWesThZv26ytpfc';
+const APP_PASSWORD = '123123123'; // Mật khẩu chung cho toàn app
 
 const INITIAL_GIDS = [
   '2005537397', '959399423', '1624411791', '1936773787', '1427779494',
@@ -46,6 +49,12 @@ const INITIAL_GIDS = [
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ff7300', '#413ea0', '#f50057', '#00bcd4', '#ffeb3b', '#4caf50'];
 
 const App: React.FC = () => {
+  // --- AUTHENTICATION STATE ---
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('vps_app_auth') === 'true';
+  });
+  const [loginPassword, setLoginPassword] = useState('');
+
   const [config, setConfig] = useState<Config>(() => {
     const saved = localStorage.getItem('vps_config');
     return saved ? JSON.parse(saved) : { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
@@ -62,12 +71,30 @@ const App: React.FC = () => {
   const [teamSummary, setTeamSummary] = useState<TeamSummary | null>(null);
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
-  const [adminPassword, setAdminPassword] = useState('');
+  const [adminPassword, setAdminPassword] = useState(''); // For Admin Settings specifically
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginPassword === APP_PASSWORD) {
+      setIsAuthenticated(true);
+      localStorage.setItem('vps_app_auth', 'true');
+      fetchData(); // Start fetching data immediately after login
+    } else {
+      alert('Mật khẩu không đúng!');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('vps_app_auth');
+    setLoginPassword('');
+    setView('home');
+  };
 
   const fetchData = useCallback(async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
@@ -106,7 +133,14 @@ const App: React.FC = () => {
     }
   }, [config.spreadsheetId]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Fetch data only if authenticated
+  useEffect(() => { 
+    if (isAuthenticated) {
+      fetchData(); 
+    } else {
+      setLoading(false); // Stop loading spinner if waiting for login
+    }
+  }, [fetchData, isAuthenticated]);
 
   const getPnlColor = (value: string) => {
     if (!value || value === '0' || value === '0.0' || value === '0%' || value === '-') return 'text-slate-500';
@@ -137,7 +171,6 @@ const App: React.FC = () => {
 
   const totalIntradayPnl = useMemo(() => {
     const sum = customers.reduce((acc, curr) => {
-      // Exclude specific sheets if necessary, assuming fetch already filtered SUMMARY_SHEET_GID
       return acc + cleanNumber(curr.intradayPnl);
     }, 0);
     return sum.toLocaleString('vi-VN');
@@ -150,9 +183,44 @@ const App: React.FC = () => {
   }, [customers]);
 
   const verifyAdmin = () => {
-    if (adminPassword === '30101986') setIsAdminAuthenticated(true);
+    if (adminPassword === APP_PASSWORD) setIsAdminAuthenticated(true);
     else alert('Mật khẩu sai!');
   };
+
+  // --- LOCK SCREEN RENDER ---
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 px-4 font-sans">
+        <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl border border-slate-100 text-center animate-in fade-in zoom-in duration-300">
+          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-blue-200">
+            <ShieldCheck className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-xl font-bold text-slate-800 mb-2">Quản lý khách hàng VPS</h1>
+          <p className="text-slate-500 text-sm mb-6">Vui lòng nhập mật khẩu để truy cập</p>
+          
+          <form onSubmit={handleLogin} className="space-y-4">
+            <input 
+              type="password" 
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center text-lg tracking-widest"
+              placeholder="••••••••"
+              autoFocus
+            />
+            <button 
+              type="submit" 
+              className="w-full bg-blue-700 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform hover:bg-blue-800"
+            >
+              Truy cập
+            </button>
+          </form>
+          <div className="mt-6 text-[10px] text-slate-400 uppercase tracking-widest font-bold">
+            BNHN - Nguyễn Thị Thương
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading && view === 'home') {
     return (
@@ -174,7 +242,10 @@ const App: React.FC = () => {
               <button onClick={() => fetchData(false)} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
             )}
             <h1 className="text-lg md:text-xl font-bold truncate px-2">Quản lý khách hàng VPS</h1>
-            <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
+              <button onClick={handleLogout} className="p-1 hover:bg-red-500 rounded-full transition-colors ml-1" title="Đăng xuất"><LogOut className="w-5 h-5 opacity-70" /></button>
+            </div>
           </div>
           <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-bold text-blue-100 max-w-7xl mx-auto">
             <span className="uppercase tracking-tight">BNHN - Nguyễn Thị Thương</span>
@@ -209,7 +280,7 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Chart - Now first in order for mobile view */}
+              {/* Chart */}
               <section className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
                 <h2 className="text-sm md:text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-purple-600" /> Tỷ trọng vốn
@@ -240,7 +311,7 @@ const App: React.FC = () => {
                 </div>
               </section>
 
-              {/* Customer List - Now second */}
+              {/* Customer List */}
               <section className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <h2 className="text-sm md:text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-600" /> Danh sách khách hàng
@@ -299,9 +370,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* NEW: Capital, Market Value, Intraday PnL Summary */}
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-               {/* Row 1 on mobile, Col 1-5 on desktop */}
                <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
                   <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">Tổng Vốn ĐT</p>
                   <p className="text-sm md:text-lg font-black text-slate-800 break-words">{customerDetail.totalCapital}</p>
@@ -324,7 +393,6 @@ const App: React.FC = () => {
                   </p>
                </div>
 
-               {/* Full Width on mobile, 1 col on desktop */}
                <div className="col-span-2 md:col-span-1 bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
                   <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">% Tăng trưởng</p>
                   <p className={`text-lg md:text-xl font-black ${getPnlColor(customerDetail.portfolioPercent)}`}>
@@ -334,7 +402,6 @@ const App: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Portfolio Table */}
               <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                 <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-blue-600" />
@@ -371,7 +438,6 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Pie Chart for Portfolio Weights */}
               {customerDetail.weights.length > 0 && (
                 <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 flex flex-col">
                    <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">

@@ -1,0 +1,5 @@
+{
+  "name": "VPS Customer Management",
+  "description": "A mobile-responsive application for managing investment portfolios, tracking team capital, and analyzing individual customer performance with data synced from Google Sheets.",
+  "requestFramePermissions": []
+}

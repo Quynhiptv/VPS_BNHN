@@ -16,7 +16,8 @@ import {
   ShieldCheck,
   Key,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  BarChart4
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -29,19 +30,20 @@ import {
   TeamSummary, 
   CustomerSummary, 
   CustomerDetail, 
-  Config 
+  Config,
+  MarketItem
 } from './types';
 import { 
   getTeamSummary, 
   getCustomerSummaries, 
-  getCustomerDetail 
+  getCustomerDetail,
+  getMarketBoardData,
+  cleanNumber
 } from './services/googleSheets';
 
-const SUMMARY_SHEET_GID = '1181732765';
 const DEFAULT_SPREADSHEET_ID = '1RLhYYa6thMh_60atGO4bmbXI7j21vWesThZv26ytpfc';
-const ADMIN_PASSWORD = '30101986'; // Mật khẩu phần Cài đặt (Admin)
+const ADMIN_PASSWORD = '30101986'; 
 
-// Đã thêm 373305596 vào danh sách
 const INITIAL_GIDS = [
   '2005537397', '959399423', '1624411791', '1936773787', '1427779494',
   '1410453576', '197258654', '1934334655', '1595143066', '998019819',
@@ -62,7 +64,9 @@ const App: React.FC = () => {
         const accessPasswords = parsed.accessPasswords && Array.isArray(parsed.accessPasswords) && parsed.accessPasswords.length > 0 
           ? parsed.accessPasswords 
           : ['123123123'];
-        return { ...parsed, customerSheets: combinedSheets, accessPasswords };
+        // Filter out the forbidden summary sheet ID if it somehow got saved
+        const filteredSheets = combinedSheets.filter(id => id !== '1181732765');
+        return { ...parsed, customerSheets: filteredSheets, accessPasswords };
       } catch (e) {
         return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123'] };
       }
@@ -75,7 +79,7 @@ const App: React.FC = () => {
   });
   const [loginPassword, setLoginPassword] = useState('');
 
-  const [view, setView] = useState<'home' | 'detail' | 'admin'>('home');
+  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'market'>('home');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -85,6 +89,7 @@ const App: React.FC = () => {
   const [teamSummary, setTeamSummary] = useState<TeamSummary | null>(null);
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
+  const [marketData, setMarketData] = useState<MarketItem[]>([]);
   
   // Admin State
   const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
@@ -96,11 +101,39 @@ const App: React.FC = () => {
     else setIsRefreshing(true);
     setError(null);
     try {
-      const summary = await getTeamSummary(config.spreadsheetId, SUMMARY_SHEET_GID);
-      setTeamSummary(summary);
-      const customerGids = config.customerSheets.filter(gid => gid !== SUMMARY_SHEET_GID);
+      // Fetch details for all customers
+      // Ensure we DO NOT use the summary sheet GID
+      const customerGids = config.customerSheets.filter(gid => gid !== '1181732765');
       const custSummaries = await getCustomerSummaries(config.spreadsheetId, customerGids);
       setCustomers(custSummaries);
+
+      // --- CALCULATE TEAM STATS ---
+      // Sum up B2, B3, B4, B6 from all individual customers
+      let totalCap = 0;   // Sum of B2
+      let totalMkt = 0;   // Sum of B3
+      let totalPnl = 0;   // Sum of B4 (Lãi lỗ hiện tại)
+      let totalIntra = 0; // Sum of B6 (Lãi lỗ trong ngày)
+
+      custSummaries.forEach(c => {
+        totalCap += cleanNumber(c.totalCapital);
+        totalMkt += cleanNumber(c.marketValue);
+        totalPnl += cleanNumber(c.currentPnl);
+        totalIntra += cleanNumber(c.intradayPnl);
+      });
+
+      // Calculate Team % Growth: (Market Value - Total Capital) / Total Capital * 100
+      let teamPercent = 0;
+      if (totalCap !== 0) {
+        teamPercent = ((totalMkt - totalCap) / totalCap) * 100;
+      }
+
+      setTeamSummary({
+        totalCapital: totalCap.toLocaleString('vi-VN'),
+        marketValue: totalMkt.toLocaleString('vi-VN'),
+        pnl: totalPnl.toLocaleString('vi-VN'),
+        pnlPercent: (teamPercent > 0 ? '+' : '') + teamPercent.toFixed(2) + '%'
+      });
+
       setLastUpdated(new Date());
     } catch (e: any) {
       setError(e.message || 'Lỗi cập nhật dữ liệu từ Google Sheets.');
@@ -127,6 +160,24 @@ const App: React.FC = () => {
       setIsRefreshing(false);
     }
   }, [config.spreadsheetId]);
+
+  const loadMarketData = useCallback(async (showFullLoader = true) => {
+    if (showFullLoader) setLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const customerGids = config.customerSheets.filter(gid => gid !== '1181732765');
+      const marketBoard = await getMarketBoardData(config.spreadsheetId, customerGids);
+      setMarketData(marketBoard);
+      setLastUpdated(new Date());
+      setView('market');
+    } catch (e: any) {
+      setError(e.message || 'Lỗi tải bảng điện.');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [config]);
 
   // Fetch data automatically on mount if authenticated
   useEffect(() => { 
@@ -160,28 +211,6 @@ const App: React.FC = () => {
     return value.trim().startsWith('-') ? 'text-red-500' : 'text-green-500'; 
   };
 
-  const cleanNumber = (val: string | undefined): number => {
-    if (!val || val === '-' || val === '' || val === '0' || val === null) return 0;
-    let str = String(val).trim();
-    str = str.replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '');
-    if (str === '0' || str === '0.0' || str === '0,0') return 0;
-    str = str.replace(/[^\d.,-]/g, '');
-    if (!str) return 0;
-    if (str.includes(',') && str.includes('.')) {
-      if (str.lastIndexOf(',') > str.lastIndexOf('.')) str = str.replace(/\./g, '').replace(',', '.');
-      else str = str.replace(/,/g, '');
-    } else if (str.includes(',')) {
-      const parts = str.split(',');
-      if (parts[parts.length - 1].length === 3 && parts.length > 1) str = str.replace(/,/g, '');
-      else str = str.replace(',', '.');
-    } else if (str.includes('.')) {
-      const parts = str.split('.');
-      if (parts[parts.length - 1].length === 3 && parts.length > 1) str = str.replace(/\./g, '');
-    }
-    const num = parseFloat(str);
-    return isNaN(num) ? 0 : num;
-  };
-
   const totalIntradayPnl = useMemo(() => {
     const sum = customers.reduce((acc, curr) => {
       return acc + cleanNumber(curr.intradayPnl);
@@ -191,7 +220,7 @@ const App: React.FC = () => {
 
   const teamDistribution = useMemo(() => {
     return customers
-      .map(c => ({ name: c.name, value: parseFloat(c.totalCapital.replace(/[^0-9.-]/g, '')) || 0 }))
+      .map(c => ({ name: c.name, value: cleanNumber(c.totalCapital) }))
       .filter(i => i.value > 0).sort((a, b) => b.value - a.value);
   }, [customers]);
 
@@ -220,6 +249,22 @@ const App: React.FC = () => {
     }
     const updated = { ...config, accessPasswords: config.accessPasswords.filter(p => p !== pwd) };
     saveConfig(updated);
+  };
+
+  // Helper to format stock price (DNSE returns price as integer e.g. 29500)
+  // We want to display 29.50
+  const formatPrice = (price: number) => {
+    if (price === 0) return '-';
+    // DNSE returns full price (e.g. 29500), we want to show 29.50
+    const displayPrice = price > 1000 ? price / 1000 : price;
+    return displayPrice.toFixed(2);
+  };
+
+  const formatChange = (change: number) => {
+     if (change === 0) return '-';
+     // DNSE returns full change (e.g. -100 or 500), we want to show -0.10 or +0.50
+     const displayChange = change > 1000 || change < -1000 || Math.abs(change) >= 100 ? change / 1000 : change;
+     return (displayChange > 0 ? '+' : '') + displayChange.toFixed(2);
   };
 
   // --- LOCK SCREEN RENDER ---
@@ -271,13 +316,15 @@ const App: React.FC = () => {
       <header className="bg-blue-700 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 w-full">
           <div className="flex justify-between items-center">
-            {view !== 'home' ? (
+            {view !== 'home' && view !== 'market' ? (
               <button onClick={() => { setView('home'); setError(null); }} className="p-1 active:scale-90 hover:bg-blue-600 rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
             ) : (
-              <button onClick={() => fetchData(false)} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
+              <button onClick={() => view === 'market' ? loadMarketData(false) : fetchData(false)} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
             )}
             <h1 className="text-lg md:text-xl font-bold truncate px-2">
-              {view === 'detail' && customerDetail?.name ? customerDetail.name : 'Quản lý khách hàng VPS'}
+              {view === 'detail' && customerDetail?.name ? customerDetail.name : 
+               view === 'market' ? 'Bảng điện danh mục' : 
+               'Quản lý khách hàng VPS'}
             </h1>
             <div className="flex items-center gap-1">
               <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
@@ -289,6 +336,26 @@ const App: React.FC = () => {
           </div>
         </div>
       </header>
+
+      {/* VIEW SWITCHER TABS (Only on top level views) */}
+      {(view === 'home' || view === 'market') && (
+        <div className="bg-white border-b border-slate-200">
+           <div className="max-w-7xl mx-auto flex">
+              <button 
+                onClick={() => { setView('home'); fetchData(); }}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${view === 'home' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              >
+                <Users className="w-4 h-4" /> Danh sách khách hàng
+              </button>
+              <button 
+                onClick={() => loadMarketData()}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${view === 'market' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              >
+                <BarChart4 className="w-4 h-4" /> Bảng điện danh mục
+              </button>
+           </div>
+        </div>
+      )}
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 overflow-y-auto">
         {error && (
@@ -341,6 +408,7 @@ const App: React.FC = () => {
                       <Tooltip 
                         contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
                         itemStyle={{fontSize: '12px', fontWeight: 600}} 
+                        formatter={(value: number) => value.toLocaleString('vi-VN')}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -373,6 +441,47 @@ const App: React.FC = () => {
               </section>
             </div>
           </div>
+        )}
+        
+        {view === 'market' && (
+           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                <h3 className="font-bold text-slate-700 text-sm md:text-base flex items-center gap-2">
+                  <BarChart4 className="w-4 h-4 text-blue-600" /> Danh mục tổng hợp (Giá trực tuyến - Nguồn DNSE (Live))
+                </h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs md:text-sm">
+                  <thead className="bg-white text-slate-500 border-b border-slate-100">
+                    <tr>
+                      <th className="text-left p-3 font-bold">Mã</th>
+                      <th className="text-right p-3 font-bold">Giá hiện tại</th>
+                      <th className="text-right p-3 font-bold">Tăng giảm</th>
+                      <th className="text-right p-3 font-bold">Giá cao</th>
+                      <th className="text-right p-3 font-bold">Giá thấp</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 text-slate-700">
+                    {marketData.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                        <td className="p-3 font-bold text-blue-600">{item.ticker}</td>
+                        <td className={`p-3 text-right font-mono font-bold ${item.change > 0 ? 'text-green-600' : item.change < 0 ? 'text-red-500' : 'text-orange-500'}`}>
+                          {formatPrice(item.currentPrice)}
+                        </td>
+                        <td className={`p-3 text-right font-mono font-bold ${item.change > 0 ? 'text-green-500' : item.change < 0 ? 'text-red-500' : 'text-slate-400'}`}>
+                          {formatChange(item.change)}
+                        </td>
+                        <td className="p-3 text-right font-mono text-slate-600">{formatPrice(item.high)}</td>
+                        <td className="p-3 text-right font-mono text-slate-600">{formatPrice(item.low)}</td>
+                      </tr>
+                    ))}
+                    {marketData.length === 0 && (
+                       <tr><td colSpan={5} className="p-8 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+           </div>
         )}
 
         {view === 'detail' && customerDetail && (
@@ -558,11 +667,11 @@ const App: React.FC = () => {
                       {config.customerSheets.map((gid, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                           <span className="text-xs font-mono text-slate-600 truncate flex-1 mr-2 flex items-center gap-2">
-                             {gid} {gid === SUMMARY_SHEET_GID ? '(Master)' : ''}
+                             {gid} {gid === '1181732765' ? '(Bị loại bỏ)' : ''}
                              {/* Show checkmark if this GID exists in loaded customers, proving sync worked */}
                              {customers.some(c => c.id === gid) && <CheckCircle2 className="w-3 h-3 text-green-500" />}
                           </span>
-                          {gid !== SUMMARY_SHEET_GID && (
+                          {gid !== '1181732765' && (
                             <button onClick={() => saveConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                           )}
                         </div>

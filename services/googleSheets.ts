@@ -5,7 +5,8 @@ import {
   CustomerDetail, 
   TradingActivity, 
   PortfolioItem, 
-  StockWeight 
+  StockWeight,
+  MarketItem
 } from '../types';
 
 // Robust CSV parser
@@ -47,6 +48,12 @@ const parseCSV = (text: string): string[][] => {
 };
 
 const fetchSheetData = async (spreadsheetId: string, sheetIdOrName: string): Promise<string[][]> => {
+  // SAFETY CHECK: Chặn ngay lập tức nếu cố gắng fetch sheet cấm (1181732765)
+  if (sheetIdOrName === '1181732765') {
+    console.warn('Đã chặn truy cập vào sheet tổng hợp GID 1181732765');
+    return [];
+  }
+
   const isGid = /^\d+$/.test(sheetIdOrName);
   const param = isGid ? `gid=${sheetIdOrName}` : `sheet=${encodeURIComponent(sheetIdOrName)}`;
   const url = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&headers=0&${param}`;
@@ -58,81 +65,117 @@ const fetchSheetData = async (spreadsheetId: string, sheetIdOrName: string): Pro
   return parseCSV(text);
 };
 
-const colToIndex = (col: string): number => {
-  let index = 0;
-  const upperCol = col.toUpperCase();
-  for (let i = 0; i < upperCol.length; i++) {
-    index = index * 26 + (upperCol.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
-  }
-  return index - 1;
-};
-
-// Helper for internal calculations (filtering)
-const cleanNumber = (val: string | undefined): number => {
+// Helper for internal calculations (filtering) - Exported for use in App.tsx
+export const cleanNumber = (val: string | undefined): number => {
   if (!val) return 0;
   let str = String(val).trim();
 
-  // Handle Sheet Errors
+  // Handle Sheet Errors and Empty
   if (str.startsWith('#') || str === '-' || str === '' || str === 'null') return 0;
   
-  str = str.replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, ''); // Remove spaces
+  // Remove invisible characters
+  str = str.replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, '');
   
   // Handle 0 cases strictly
   if (str === '0' || str === '0.0' || str === '0,0') return 0;
 
+  // Remove currency symbols or non-numeric except . , -
   str = str.replace(/[^\d.,-]/g, '');
-
   if (!str) return 0;
 
-  if (str.includes(',') && str.includes('.')) {
-    if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-       str = str.replace(/\./g, '').replace(',', '.');
-    } else {
-       str = str.replace(/,/g, '');
-    }
-  } else if (str.includes(',')) {
-    const parts = str.split(',');
-    if (parts[parts.length - 1].length === 3 && parts.length > 1) {
-       str = str.replace(/,/g, '');
-    } else {
-       str = str.replace(',', '.');
-    }
-  } else if (str.includes('.')) {
-    const parts = str.split('.');
-    if (parts[parts.length - 1].length === 3 && parts.length > 1) {
-       str = str.replace(/\./g, '');
+  const hasComma = str.includes(',');
+  const hasDot = str.includes('.');
+
+  if (hasComma && hasDot) {
+    const lastComma = str.lastIndexOf(',');
+    const lastDot = str.lastIndexOf('.');
+    // If comma is after dot (1.000,00) -> VN format: remove dots, replace comma with dot
+    if (lastComma > lastDot) {
+      return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+    } 
+    // If dot is after comma (1,000.00) -> US format: remove commas
+    else {
+      return parseFloat(str.replace(/,/g, ''));
     }
   }
   
+  if (hasComma) {
+    const parts = str.split(',');
+    // If multiple commas (1,000,000) -> remove all commas
+    if (parts.length > 2) {
+      return parseFloat(str.replace(/,/g, ''));
+    }
+    // If one comma
+    if (parts.length === 2) {
+       // If 3 digits after comma (1,000) -> Likely thousand separator -> remove comma
+       if (parts[1].length === 3) {
+         return parseFloat(str.replace(/,/g, ''));
+       } 
+       // Otherwise (10,5 or 10,50) -> Decimal separator -> replace with dot
+       else {
+         return parseFloat(str.replace(',', '.'));
+       }
+    }
+  }
+  
+  if (hasDot) {
+    const parts = str.split('.');
+    // If multiple dots (1.000.000) -> remove all dots
+    if (parts.length > 2) {
+      return parseFloat(str.replace(/\./g, ''));
+    }
+    // If one dot
+    if (parts.length === 2) {
+       // If 3 digits after dot (1.000) -> Likely thousand separator -> remove dot
+       if (parts[1].length === 3) {
+         return parseFloat(str.replace(/\./g, ''));
+       }
+       // Otherwise (10.5) -> Decimal separator -> keep dot
+       else {
+         return parseFloat(str);
+       }
+    }
+  }
+
+  // Pure integer
   const num = parseFloat(str);
   return isNaN(num) ? 0 : num;
 };
 
+// No longer fetch from Summary Sheet, calculation is done in App.tsx based on customer data
 export const getTeamSummary = async (spreadsheetId: string, sheetName: string): Promise<TeamSummary> => {
-  const data = await fetchSheetData(spreadsheetId, sheetName);
-  return {
-    totalCapital: data[1]?.[colToIndex('AE')] || '0',
-    marketValue: data[1]?.[colToIndex('AF')] || '0',
-    pnl: data[1]?.[colToIndex('AD')] || '0',
-    pnlPercent: data[3]?.[colToIndex('M')] || '0',
-  };
+   return { totalCapital: '0', marketValue: '0', pnl: '0', pnlPercent: '0' };
 };
 
 export const getCustomerSummaries = async (spreadsheetId: string, sheetNames: string[]): Promise<CustomerSummary[]> => {
-  const summaries = await Promise.all(sheetNames.map(async (name) => {
+  // Lọc bỏ GID 1181732765 để đảm bảo an toàn
+  const validSheetNames = sheetNames.filter(name => name !== '1181732765');
+  
+  const summaries = await Promise.all(validSheetNames.map(async (name) => {
     try {
       const data = await fetchSheetData(spreadsheetId, name);
-      // PnL Percent for summary (Row 5 -> Index 4 -> B5)
-      const pnlRaw = data[4]?.[1] || '0'; 
-      // Name fallback
+      // Row 1 (Index 0): Name (A1)
+      // Row 2 (Index 1): Total Capital (B2)
+      // Row 3 (Index 2): Market Value (B3)
+      // Row 4 (Index 3): Current PnL (B4)
+      // Row 5 (Index 4): PnL Percent (B5)
+      // Row 6 (Index 5): Intraday PnL (B6)
+      
       const customerName = (data[0]?.[0] || '').trim() || `Khách hàng ${name}`;
+      const totalCapital = data[1]?.[1] || '0';
+      const marketValue = data[2]?.[1] || '0';
+      const currentPnl = data[3]?.[1] || '0'; // B4
+      const pnlRaw = data[4]?.[1] || '0'; // B5
+      const intradayPnl = data[5]?.[1] || '0'; // B6
 
       return {
         id: name,
         name: customerName,
-        totalCapital: data[1]?.[1] || '0',
+        totalCapital: totalCapital,
+        marketValue: marketValue,
+        currentPnl: currentPnl,
         pnlPercent: pnlRaw.includes('%') ? pnlRaw : pnlRaw + '%',
-        intradayPnl: data[5]?.[1] || '0' // Get B6
+        intradayPnl: intradayPnl
       };
     } catch (e) {
       return null;
@@ -144,7 +187,6 @@ export const getCustomerSummaries = async (spreadsheetId: string, sheetNames: st
 export const getCustomerDetail = async (spreadsheetId: string, sheetName: string): Promise<CustomerDetail> => {
   const data = await fetchSheetData(spreadsheetId, sheetName);
 
-  // --- NEW MAPPING REQUIREMENTS ---
   // A1 -> Name
   const name = (data[0]?.[0] || '').trim() || `Khách hàng ${sheetName}`;
 
@@ -154,24 +196,25 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   // B3 (Row index 2, Col index 1) -> Market Value
   const marketValue = data[2]?.[1] || '0';
   
-  // B5 (Row index 4, Col index 1) -> Growth % (Phần trăm tăng trưởng)
+  // B4 (Row index 3, Col index 1) -> Portfolio PnL (Lãi lỗ hiện tại danh mục)
+  const portfolioPnl = data[3]?.[1] || '0';
+
+  // B5 (Row index 4, Col index 1) -> Growth % 
   const portfolioPercent = data[4]?.[1] || '0'; 
 
-  // B6 (Row index 5, Col index 1) -> Intraday PnL (Lãi/Lỗ trong ngày)
+  // B6 (Row index 5, Col index 1) -> Intraday PnL
   const intradayPnl = data[5]?.[1] || '0';
 
-  // MAPPING CONFIGURATION
-  // Columns Indices (0-based)
   // S=18, T=19, U=20, V=21, W=22, X=23, Y=24, Z=25
   const COL = {
-    TICKER: 18,    // S: Tên Mã
-    TOTAL: 19,     // T: Số lượng
-    BUY_T0: 20,    // U: Mua T0
-    SELL_T0: 21,   // V: Bán T0
-    AVG_PRICE: 22, // W: Giá Mua
-    MKT_PRICE: 23, // X: Giá Hiện Tại
-    PNL_VAL: 24,   // Y: Lãi lỗ
-    PNL_PCT: 25    // Z: Phần trăm
+    TICKER: 18,    // S
+    TOTAL: 19,     // T
+    BUY_T0: 20,    // U
+    SELL_T0: 21,   // V
+    AVG_PRICE: 22, // W
+    MKT_PRICE: 23, // X
+    PNL_VAL: 24,   // Y
+    PNL_PCT: 25    // Z
   };
 
   const trading: TradingActivity[] = [];
@@ -179,26 +222,19 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   const rawWeights: { ticker: string; value: number }[] = [];
   
   let totalValueForWeights = 0;
-  let totalPnlVal = 0;
 
-  // UPDATED RANGE SCANNING: Rows 2 to 12 (Indices 1 to 11)
-  // Data indexes start at 0 (Row 1). So Row 2 is index 1, Row 12 is index 11.
-  const START_IDX = 1; // Row 2
-  const END_IDX = 12;  // Row 13 (exclusive, loop runs for indices 1 through 11)
+  // UPDATED RANGE: Rows 2 to 12 (Indices 1 to 11)
+  const START_IDX = 1; 
+  const END_IDX = 12;
 
   for (let i = START_IDX; i < END_IDX; i++) {
-    // Safety check if row exists
     if (i >= data.length) break;
-
     const row = data[i];
     if (!row) continue;
 
     const ticker = (row[COL.TICKER] || '').trim();
-    // Basic validation: ticker should be 3-4 chars usually
-    // Also skip if ticker looks like a header or error
     if (!ticker || ticker.length < 3 || ticker.startsWith('#')) continue;
 
-    // 1. Extract Values
     const totalRaw = row[COL.TOTAL] || '0';
     const buyT0Raw = row[COL.BUY_T0] || '0';
     const sellT0Raw = row[COL.SELL_T0] || '0';
@@ -211,9 +247,7 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
     const buyT0Val = cleanNumber(buyT0Raw);
     const sellT0Val = cleanNumber(sellT0Raw);
     const mktPriceVal = cleanNumber(mktPriceRaw);
-    const pnlVal = cleanNumber(pnlValRaw);
 
-    // 2. Build Intraday Trading List
     if (buyT0Val > 0 || sellT0Val > 0) {
       trading.push({
         ticker: ticker,
@@ -222,50 +256,127 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
       });
     }
 
-    // 3. Build Portfolio List
-    // Always add to portfolio if ticker exists in this range, even if quantity is 0
     if (totalVal > 0) {
       const percentDisplay = pnlPctRaw.includes('%') ? pnlPctRaw : pnlPctRaw + '%';
-      
       portfolio.push({
         ticker: ticker,
         total: totalRaw,
         avgPrice: avgPriceRaw,
         marketPrice: mktPriceRaw,
-        pnl: pnlValRaw, // Mapped to Col Y
+        pnl: pnlValRaw, 
         percent: percentDisplay
       });
-
-      // 4. Calculate Weights & Totals
       const stockValue = totalVal * mktPriceVal; 
       if (stockValue > 0) {
         totalValueForWeights += stockValue;
         rawWeights.push({ ticker, value: stockValue });
       }
-
-      totalPnlVal += pnlVal;
     }
   }
 
-  // Calculate weights based on collected data
   const weights: StockWeight[] = rawWeights.map(item => ({
     ticker: item.ticker,
     value: item.value,
     percent: totalValueForWeights > 0 ? (item.value / totalValueForWeights) * 100 : 0
   }));
 
-  // Helper to format currency broadly
-  const fmt = (n: number) => n.toLocaleString('vi-VN');
-
   return {
     name,
     trading,
-    intradayPnl, // B6
-    totalCapital, // B2
-    marketValue,  // B3
-    portfolioPnl: fmt(totalPnlVal),
-    portfolioPercent, // B5
+    intradayPnl,
+    totalCapital,
+    marketValue,
+    portfolioPnl: portfolioPnl, 
+    portfolioPercent,
     portfolio,
     weights
   };
+};
+
+export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string[]): Promise<MarketItem[]> => {
+  // QUAN TRỌNG: Chặn tuyệt đối GID 1181732765 không cho vào danh sách quét mã
+  const validSheetIds = sheetIds.filter(id => id !== '1181732765');
+  const uniqueTickers = new Set<string>();
+
+  // 1. Quét dữ liệu từ Sheet để lấy danh sách mã (Cột S, dòng 2-12)
+  // Chỉ quét từ các sheet hợp lệ, đã loại bỏ sheet tổng hợp
+  const results = await Promise.allSettled(
+    validSheetIds.map(id => fetchSheetData(spreadsheetId, id))
+  );
+
+  const START_IDX = 1; // Row 2
+  const END_IDX = 12;  // Row 12 (Index 11) -> 13 exclusive
+
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      const data = result.value;
+      for (let i = START_IDX; i < END_IDX; i++) {
+        if (i >= data.length) break;
+        const row = data[i];
+        if (!row) continue;
+
+        const ticker = (row[18] || '').trim().toUpperCase(); // Column S (Index 18)
+        if (ticker && ticker.length >= 3 && !ticker.startsWith('#')) {
+          uniqueTickers.add(ticker);
+        }
+      }
+    }
+  }
+
+  const tickerArray = Array.from(uniqueTickers).sort();
+  if (tickerArray.length === 0) return [];
+
+  // 2. Lấy dữ liệu Realtime từ DNSE (Entrade) API
+  // Nguồn này hỗ trợ lấy nhiều mã cùng lúc và CORS khá thoải mái.
+  try {
+     const symbols = tickerArray.join(',');
+     const response = await fetch(`https://services.entrade.com.vn/market-data-service/v1/snapshots/stock?symbols=${symbols}`);
+     
+     if (!response.ok) {
+       throw new Error(`API DNSE trả về lỗi: ${response.status}`);
+     }
+
+     const json = await response.json();
+     // Cấu trúc DNSE: { list: [ { symbol: 'HPG', lastPrice: 29500, change: -100, high: 29600, low: 29400 }, ... ] }
+     
+     const dataMap = new Map();
+     if (json.list && Array.isArray(json.list)) {
+        json.list.forEach((item: any) => {
+           if (item && item.symbol) {
+             dataMap.set(item.symbol, item);
+           }
+        });
+     }
+
+     return tickerArray.map(ticker => {
+        const item = dataMap.get(ticker);
+        if (item) {
+          return {
+            ticker: ticker,
+            currentPrice: item.lastPrice || 0,
+            change: item.change || 0,
+            high: item.high || 0,
+            low: item.low || 0
+          } as MarketItem;
+        }
+        return {
+           ticker,
+           currentPrice: 0,
+           change: 0,
+           high: 0,
+           low: 0
+        } as MarketItem;
+     });
+
+  } catch (error) {
+     console.error("Lỗi lấy dữ liệu thị trường (DNSE):", error);
+     // Trả về danh sách rỗng để không crash UI, hiển thị 0
+     return tickerArray.map(t => ({
+         ticker: t,
+         currentPrice: 0,
+         change: 0,
+         high: 0,
+         low: 0
+     }));
+  }
 };

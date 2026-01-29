@@ -9,9 +9,11 @@ export interface TeamSummary {
 export interface CustomerSummary {
   id: string; // Sheet Name
   name: string;
-  totalCapital: string;
-  pnlPercent: string;
-  intradayPnl: string; // From B6
+  totalCapital: string; // From B2
+  marketValue: string;  // From B3
+  currentPnl: string;   // From B4
+  pnlPercent: string;   // From B5
+  intradayPnl: string;  // From B6
 }
 
 export interface TradingActivity {
@@ -45,6 +47,14 @@ export interface CustomerDetail {
   portfolioPercent: string; // From B6
   portfolio: PortfolioItem[];
   weights: StockWeight[];
+}
+
+export interface MarketItem {
+  ticker: string;
+  currentPrice: number;
+  change: number;     // Tăng giảm
+  high: number;       // Giá cao
+  low: number;        // Giá thấp
 }
 
 export interface Config {

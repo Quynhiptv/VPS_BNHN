@@ -181,10 +181,10 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   let totalValueForWeights = 0;
   let totalPnlVal = 0;
 
-  // UPDATED RANGE SCANNING: Rows 2 to 9 (Indices 1 to 8)
-  // Per user request: "Dữ liệu lấy từ hàng 2 tới hàng 9. Chỉ trong phạm vi đó thôi"
+  // UPDATED RANGE SCANNING: Rows 2 to 12 (Indices 1 to 11)
+  // Data indexes start at 0 (Row 1). So Row 2 is index 1, Row 12 is index 11.
   const START_IDX = 1; // Row 2
-  const END_IDX = 9;   // Row 10 (exclusive, so loop runs for indices 1,2,3,4,5,6,7,8 = Rows 2-9)
+  const END_IDX = 12;  // Row 13 (exclusive, loop runs for indices 1 through 11)
 
   for (let i = START_IDX; i < END_IDX; i++) {
     // Safety check if row exists
@@ -223,8 +223,7 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
     }
 
     // 3. Build Portfolio List
-    // Always add to portfolio if ticker exists in this range, even if quantity is 0,
-    // though typically we check totalVal > 0. User didn't specify to change this logic, just the range.
+    // Always add to portfolio if ticker exists in this range, even if quantity is 0
     if (totalVal > 0) {
       const percentDisplay = pnlPctRaw.includes('%') ? pnlPctRaw : pnlPctRaw + '%';
       

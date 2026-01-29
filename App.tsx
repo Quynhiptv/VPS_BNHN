@@ -14,7 +14,9 @@ import {
   RefreshCcw,
   Clock,
   ShieldCheck,
-  Key
+  Key,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -39,6 +41,7 @@ const SUMMARY_SHEET_GID = '1181732765';
 const DEFAULT_SPREADSHEET_ID = '1RLhYYa6thMh_60atGO4bmbXI7j21vWesThZv26ytpfc';
 const ADMIN_PASSWORD = '30101986'; // Mật khẩu phần Cài đặt (Admin)
 
+// Đã thêm 373305596 vào danh sách
 const INITIAL_GIDS = [
   '2005537397', '959399423', '1624411791', '1936773787', '1427779494',
   '1410453576', '197258654', '1934334655', '1595143066', '998019819',
@@ -56,7 +59,6 @@ const App: React.FC = () => {
       try {
         const parsed = JSON.parse(saved);
         const combinedSheets = Array.from(new Set([...INITIAL_GIDS, ...(parsed.customerSheets || [])]));
-        // Ensure accessPasswords exists, default to ['123123123']
         const accessPasswords = parsed.accessPasswords && Array.isArray(parsed.accessPasswords) && parsed.accessPasswords.length > 0 
           ? parsed.accessPasswords 
           : ['123123123'];
@@ -538,7 +540,10 @@ const App: React.FC = () => {
                       onChange={(e) => saveConfig({...config, spreadsheetId: e.target.value})}
                     />
                     <div className="flex justify-between items-center mt-4">
-                       <h3 className="text-sm font-bold text-slate-700">Danh sách GID Khách hàng</h3>
+                       <div className="flex items-center gap-2">
+                         <h3 className="text-sm font-bold text-slate-700">Danh sách GID Khách hàng</h3>
+                         {(isRefreshing || loading) && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
+                       </div>
                        <button 
                          onClick={() => {
                            const newGid = prompt("Nhập GID sheet mới:");
@@ -552,13 +557,20 @@ const App: React.FC = () => {
                     <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
                       {config.customerSheets.map((gid, idx) => (
                         <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          <span className="text-xs font-mono text-slate-600 truncate flex-1 mr-2">{gid} {gid === SUMMARY_SHEET_GID ? '(Master)' : ''}</span>
+                          <span className="text-xs font-mono text-slate-600 truncate flex-1 mr-2 flex items-center gap-2">
+                             {gid} {gid === SUMMARY_SHEET_GID ? '(Master)' : ''}
+                             {/* Show checkmark if this GID exists in loaded customers, proving sync worked */}
+                             {customers.some(c => c.id === gid) && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                          </span>
                           {gid !== SUMMARY_SHEET_GID && (
                             <button onClick={() => saveConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                           )}
                         </div>
                       ))}
                     </div>
+                    <p className="text-[10px] text-slate-400 mt-2 italic text-center">
+                       {isRefreshing ? "Đang đồng bộ dữ liệu mới..." : "Dữ liệu tự động đồng bộ khi thay đổi cấu hình."}
+                    </p>
                  </div>
 
                  {/* Password Management */}

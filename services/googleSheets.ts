@@ -69,9 +69,12 @@ const colToIndex = (col: string): number => {
 
 // Helper for internal calculations (filtering)
 const cleanNumber = (val: string | undefined): number => {
-  if (!val || val === '-' || val === '' || val === '0' || val === null) return 0;
-  
+  if (!val) return 0;
   let str = String(val).trim();
+
+  // Handle Sheet Errors
+  if (str.startsWith('#') || str === '-' || str === '' || str === 'null') return 0;
+  
   str = str.replace(/[\s\u00A0\u200B-\u200D\uFEFF]/g, ''); // Remove spaces
   
   // Handle 0 cases strictly
@@ -121,9 +124,12 @@ export const getCustomerSummaries = async (spreadsheetId: string, sheetNames: st
       const data = await fetchSheetData(spreadsheetId, name);
       // PnL Percent for summary (Row 5 -> Index 4 -> B5)
       const pnlRaw = data[4]?.[1] || '0'; 
+      // Name fallback
+      const customerName = (data[0]?.[0] || '').trim() || `Khách hàng ${name}`;
+
       return {
         id: name,
-        name: data[0]?.[0] || 'N/A',
+        name: customerName,
         totalCapital: data[1]?.[1] || '0',
         pnlPercent: pnlRaw.includes('%') ? pnlRaw : pnlRaw + '%',
         intradayPnl: data[5]?.[1] || '0' // Get B6
@@ -140,7 +146,7 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
 
   // --- NEW MAPPING REQUIREMENTS ---
   // A1 -> Name
-  const name = data[0]?.[0] || '';
+  const name = (data[0]?.[0] || '').trim() || `Khách hàng ${sheetName}`;
 
   // B2 (Row index 1, Col index 1) -> Total Capital
   const totalCapital = data[1]?.[1] || '0';
@@ -189,7 +195,8 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
 
     const ticker = (row[COL.TICKER] || '').trim();
     // Basic validation: ticker should be 3-4 chars usually
-    if (!ticker || ticker.length < 3) continue;
+    // Also skip if ticker looks like a header or error
+    if (!ticker || ticker.length < 3 || ticker.startsWith('#')) continue;
 
     // 1. Extract Values
     const totalRaw = row[COL.TOTAL] || '0';

@@ -36,12 +36,13 @@ export interface StockWeight {
 }
 
 export interface CustomerDetail {
+  name: string; // From A1
   trading: TradingActivity[];
   intradayPnl: string;
   totalCapital: string; // From B2
   marketValue: string;  // From B3
   portfolioPnl: string;
-  portfolioPercent: string;
+  portfolioPercent: string; // From B6
   portfolio: PortfolioItem[];
   weights: StockWeight[];
 }

@@ -57,7 +57,18 @@ const App: React.FC = () => {
 
   const [config, setConfig] = useState<Config>(() => {
     const saved = localStorage.getItem('vps_config');
-    return saved ? JSON.parse(saved) : { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Merge existing local sheets with the hardcoded INITIAL_GIDS
+        // This ensures that if we update INITIAL_GIDS in code, users see the new sheets automatically
+        const combinedSheets = Array.from(new Set([...INITIAL_GIDS, ...(parsed.customerSheets || [])]));
+        return { ...parsed, customerSheets: combinedSheets };
+      } catch (e) {
+        return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
+      }
+    }
+    return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
   });
 
   const [view, setView] = useState<'home' | 'detail' | 'admin'>('home');
@@ -241,7 +252,9 @@ const App: React.FC = () => {
             ) : (
               <button onClick={() => fetchData(false)} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
             )}
-            <h1 className="text-lg md:text-xl font-bold truncate px-2">Quản lý khách hàng VPS</h1>
+            <h1 className="text-lg md:text-xl font-bold truncate px-2">
+              {view === 'detail' && customerDetail?.name ? customerDetail.name : 'Quản lý khách hàng VPS'}
+            </h1>
             <div className="flex items-center gap-1">
               <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
               <button onClick={handleLogout} className="p-1 hover:bg-red-500 rounded-full transition-colors ml-1" title="Đăng xuất"><LogOut className="w-5 h-5 opacity-70" /></button>

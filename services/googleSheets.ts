@@ -119,6 +119,7 @@ export const getCustomerSummaries = async (spreadsheetId: string, sheetNames: st
   const summaries = await Promise.all(sheetNames.map(async (name) => {
     try {
       const data = await fetchSheetData(spreadsheetId, name);
+      // PnL Percent for summary (Row 5 -> Index 4 -> B5)
       const pnlRaw = data[4]?.[1] || '0'; 
       return {
         id: name,
@@ -137,12 +138,20 @@ export const getCustomerSummaries = async (spreadsheetId: string, sheetNames: st
 export const getCustomerDetail = async (spreadsheetId: string, sheetName: string): Promise<CustomerDetail> => {
   const data = await fetchSheetData(spreadsheetId, sheetName);
 
-  // --- NEW REQUIREMENTS ---
+  // --- NEW MAPPING REQUIREMENTS ---
+  // A1 -> Name
+  const name = data[0]?.[0] || '';
+
   // B2 (Row index 1, Col index 1) -> Total Capital
-  // B3 (Row index 2, Col index 1) -> Market Value
-  // B6 (Row index 5, Col index 1) -> Intraday PnL (Lãi/Lỗ trong ngày)
   const totalCapital = data[1]?.[1] || '0';
+  
+  // B3 (Row index 2, Col index 1) -> Market Value
   const marketValue = data[2]?.[1] || '0';
+  
+  // B5 (Row index 4, Col index 1) -> Growth % (Phần trăm tăng trưởng)
+  const portfolioPercent = data[4]?.[1] || '0'; 
+
+  // B6 (Row index 5, Col index 1) -> Intraday PnL (Lãi/Lỗ trong ngày)
   const intradayPnl = data[5]?.[1] || '0';
 
   // MAPPING CONFIGURATION
@@ -166,16 +175,21 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   let totalValueForWeights = 0;
   let totalPnlVal = 0;
 
-  // READ FIXED RANGE: Row 2 to Row 8 (Indices 1 to 7)
-  const START_ROW_IDX = 1;
-  const END_ROW_IDX = 7;
+  // UPDATED RANGE SCANNING: Rows 2 to 9 (Indices 1 to 8)
+  // Per user request: "Dữ liệu lấy từ hàng 2 tới hàng 9. Chỉ trong phạm vi đó thôi"
+  const START_IDX = 1; // Row 2
+  const END_IDX = 9;   // Row 10 (exclusive, so loop runs for indices 1,2,3,4,5,6,7,8 = Rows 2-9)
 
-  for (let i = START_ROW_IDX; i <= END_ROW_IDX; i++) {
+  for (let i = START_IDX; i < END_IDX; i++) {
+    // Safety check if row exists
+    if (i >= data.length) break;
+
     const row = data[i];
     if (!row) continue;
 
     const ticker = (row[COL.TICKER] || '').trim();
-    if (!ticker) continue;
+    // Basic validation: ticker should be 3-4 chars usually
+    if (!ticker || ticker.length < 3) continue;
 
     // 1. Extract Values
     const totalRaw = row[COL.TOTAL] || '0';
@@ -202,6 +216,8 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
     }
 
     // 3. Build Portfolio List
+    // Always add to portfolio if ticker exists in this range, even if quantity is 0,
+    // though typically we check totalVal > 0. User didn't specify to change this logic, just the range.
     if (totalVal > 0) {
       const percentDisplay = pnlPctRaw.includes('%') ? pnlPctRaw : pnlPctRaw + '%';
       
@@ -236,12 +252,13 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   const fmt = (n: number) => n.toLocaleString('vi-VN');
 
   return {
+    name,
     trading,
-    intradayPnl, // Now fetched from B6
-    totalCapital, // From B2
-    marketValue,  // From B3
+    intradayPnl, // B6
+    totalCapital, // B2
+    marketValue,  // B3
     portfolioPnl: fmt(totalPnlVal),
-    portfolioPercent: '---', 
+    portfolioPercent, // B5
     portfolio,
     weights
   };

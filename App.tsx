@@ -13,8 +13,8 @@ import {
   PieChart as PieChartIcon,
   RefreshCcw,
   Clock,
-  LogOut,
-  ShieldCheck
+  ShieldCheck,
+  Key
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -37,7 +37,7 @@ import {
 
 const SUMMARY_SHEET_GID = '1181732765';
 const DEFAULT_SPREADSHEET_ID = '1RLhYYa6thMh_60atGO4bmbXI7j21vWesThZv26ytpfc';
-const APP_PASSWORD = '123123123'; // Mật khẩu chung cho toàn app
+const ADMIN_PASSWORD = '30101986'; // Mật khẩu phần Cài đặt (Admin)
 
 const INITIAL_GIDS = [
   '2005537397', '959399423', '1624411791', '1936773787', '1427779494',
@@ -49,27 +49,29 @@ const INITIAL_GIDS = [
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ff7300', '#413ea0', '#f50057', '#00bcd4', '#ffeb3b', '#4caf50'];
 
 const App: React.FC = () => {
-  // --- AUTHENTICATION STATE ---
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('vps_app_auth') === 'true';
-  });
-  const [loginPassword, setLoginPassword] = useState('');
-
+  // --- STATE ---
   const [config, setConfig] = useState<Config>(() => {
     const saved = localStorage.getItem('vps_config');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        // Merge existing local sheets with the hardcoded INITIAL_GIDS
-        // This ensures that if we update INITIAL_GIDS in code, users see the new sheets automatically
         const combinedSheets = Array.from(new Set([...INITIAL_GIDS, ...(parsed.customerSheets || [])]));
-        return { ...parsed, customerSheets: combinedSheets };
+        // Ensure accessPasswords exists, default to ['123123123']
+        const accessPasswords = parsed.accessPasswords && Array.isArray(parsed.accessPasswords) && parsed.accessPasswords.length > 0 
+          ? parsed.accessPasswords 
+          : ['123123123'];
+        return { ...parsed, customerSheets: combinedSheets, accessPasswords };
       } catch (e) {
-        return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
+        return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123'] };
       }
     }
-    return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS };
+    return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123'] };
   });
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('vps_app_auth') === 'true';
+  });
+  const [loginPassword, setLoginPassword] = useState('');
 
   const [view, setView] = useState<'home' | 'detail' | 'admin'>('home');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -77,35 +79,15 @@ const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
-  const [mounted, setMounted] = useState(false);
   
   const [teamSummary, setTeamSummary] = useState<TeamSummary | null>(null);
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
-  const [adminPassword, setAdminPassword] = useState(''); // For Admin Settings specifically
+  
+  // Admin State
+  const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (loginPassword === APP_PASSWORD) {
-      setIsAuthenticated(true);
-      localStorage.setItem('vps_app_auth', 'true');
-      fetchData(); // Start fetching data immediately after login
-    } else {
-      alert('Mật khẩu không đúng!');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem('vps_app_auth');
-    setLoginPassword('');
-    setView('home');
-  };
+  const [newAccessPassword, setNewAccessPassword] = useState('');
 
   const fetchData = useCallback(async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
@@ -144,14 +126,32 @@ const App: React.FC = () => {
     }
   }, [config.spreadsheetId]);
 
-  // Fetch data only if authenticated
+  // Fetch data automatically on mount if authenticated
   useEffect(() => { 
     if (isAuthenticated) {
       fetchData(); 
     } else {
-      setLoading(false); // Stop loading spinner if waiting for login
+      setLoading(false);
     }
   }, [fetchData, isAuthenticated]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (config.accessPasswords.includes(loginPassword)) {
+      setIsAuthenticated(true);
+      localStorage.setItem('vps_app_auth', 'true');
+      fetchData();
+    } else {
+      alert('Mật khẩu không đúng!');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    localStorage.removeItem('vps_app_auth');
+    setLoginPassword('');
+    setView('home');
+  };
 
   const getPnlColor = (value: string) => {
     if (!value || value === '0' || value === '0.0' || value === '0%' || value === '-') return 'text-slate-500';
@@ -194,8 +194,30 @@ const App: React.FC = () => {
   }, [customers]);
 
   const verifyAdmin = () => {
-    if (adminPassword === APP_PASSWORD) setIsAdminAuthenticated(true);
-    else alert('Mật khẩu sai!');
+    if (adminPasswordInput === ADMIN_PASSWORD) setIsAdminAuthenticated(true);
+    else alert('Mật khẩu Admin sai!');
+  };
+
+  const saveConfig = (newConfig: Config) => {
+    setConfig(newConfig);
+    localStorage.setItem('vps_config', JSON.stringify(newConfig));
+  };
+
+  const addAccessPassword = () => {
+    if (newAccessPassword && !config.accessPasswords.includes(newAccessPassword)) {
+      const updated = { ...config, accessPasswords: [...config.accessPasswords, newAccessPassword] };
+      saveConfig(updated);
+      setNewAccessPassword('');
+    }
+  };
+
+  const removeAccessPassword = (pwd: string) => {
+    if (config.accessPasswords.length <= 1) {
+      alert("Phải giữ ít nhất 1 mật khẩu truy cập!");
+      return;
+    }
+    const updated = { ...config, accessPasswords: config.accessPasswords.filter(p => p !== pwd) };
+    saveConfig(updated);
   };
 
   // --- LOCK SCREEN RENDER ---
@@ -257,7 +279,6 @@ const App: React.FC = () => {
             </h1>
             <div className="flex items-center gap-1">
               <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
-              <button onClick={handleLogout} className="p-1 hover:bg-red-500 rounded-full transition-colors ml-1" title="Đăng xuất"><LogOut className="w-5 h-5 opacity-70" /></button>
             </div>
           </div>
           <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-bold text-blue-100 max-w-7xl mx-auto">
@@ -499,8 +520,8 @@ const App: React.FC = () => {
                  <h2 className="text-lg font-bold text-slate-800">Xác thực Admin</h2>
                  <input 
                    type="password" 
-                   value={adminPassword}
-                   onChange={e => setAdminPassword(e.target.value)}
+                   value={adminPasswordInput}
+                   onChange={e => setAdminPasswordInput(e.target.value)}
                    className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center"
                    placeholder="Nhập mật khẩu..."
                  />
@@ -508,19 +529,20 @@ const App: React.FC = () => {
                </div>
              ) : (
                <div className="space-y-6">
+                 {/* Google Sheet Config */}
                  <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 className="text-sm font-bold text-slate-700 mb-2">Cấu hình ID Google Sheet</h3>
                     <input 
                       className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-slate-50 mb-2 font-mono"
                       value={config.spreadsheetId}
-                      onChange={(e) => setConfig({...config, spreadsheetId: e.target.value})}
+                      onChange={(e) => saveConfig({...config, spreadsheetId: e.target.value})}
                     />
                     <div className="flex justify-between items-center mt-4">
                        <h3 className="text-sm font-bold text-slate-700">Danh sách GID Khách hàng</h3>
                        <button 
                          onClick={() => {
                            const newGid = prompt("Nhập GID sheet mới:");
-                           if(newGid) setConfig({...config, customerSheets: [...config.customerSheets, newGid]});
+                           if(newGid) saveConfig({...config, customerSheets: [...config.customerSheets, newGid]});
                          }}
                          className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200"
                        >
@@ -532,23 +554,61 @@ const App: React.FC = () => {
                         <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
                           <span className="text-xs font-mono text-slate-600 truncate flex-1 mr-2">{gid} {gid === SUMMARY_SHEET_GID ? '(Master)' : ''}</span>
                           {gid !== SUMMARY_SHEET_GID && (
-                            <button onClick={() => setConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => saveConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
                           )}
                         </div>
                       ))}
                     </div>
                  </div>
-                 <button 
-                   onClick={() => {
-                     localStorage.setItem('vps_config', JSON.stringify(config));
-                     alert('Đã lưu cấu hình!');
-                     setView('home');
-                     fetchData();
-                   }}
-                   className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 active:scale-95 transition-transform"
-                 >
-                   Lưu & Áp dụng
-                 </button>
+
+                 {/* Password Management */}
+                 <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
+                       <Key className="w-4 h-4" /> Quản lý mật khẩu truy cập Web
+                    </h3>
+                    <div className="flex gap-2 mb-3">
+                       <input 
+                         className="flex-1 p-2 text-xs border border-slate-200 rounded-lg bg-slate-50 font-mono focus:ring-1 focus:ring-blue-500 outline-none"
+                         placeholder="Nhập mật khẩu mới..."
+                         value={newAccessPassword}
+                         onChange={(e) => setNewAccessPassword(e.target.value)}
+                       />
+                       <button 
+                         onClick={addAccessPassword}
+                         className="bg-green-600 text-white px-3 rounded-lg font-bold text-xs hover:bg-green-700 disabled:opacity-50"
+                         disabled={!newAccessPassword}
+                       >
+                         Thêm
+                       </button>
+                    </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {config.accessPasswords.map((pwd, idx) => (
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          <span className="text-xs font-mono text-slate-800 font-bold ml-2 tracking-wider">{pwd}</span>
+                          <button onClick={() => removeAccessPassword(pwd)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-2 italic">* Các mật khẩu này dùng để đăng nhập vào giao diện chính của Web.</p>
+                 </div>
+
+                 <div className="space-y-3">
+                   <button 
+                     onClick={() => handleLogout()}
+                     className="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold active:scale-95 transition-transform"
+                   >
+                     Đăng xuất Admin & Khóa màn hình
+                   </button>
+                   <button 
+                     onClick={() => {
+                       setView('home');
+                       fetchData();
+                     }}
+                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform"
+                   >
+                     Quay về trang chủ
+                   </button>
+                 </div>
                </div>
              )}
           </div>

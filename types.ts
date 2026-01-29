@@ -50,4 +50,5 @@ export interface CustomerDetail {
 export interface Config {
   spreadsheetId: string;
   customerSheets: string[];
+  accessPasswords: string[]; // Danh sách mật khẩu truy cập web
 }

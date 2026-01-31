@@ -17,7 +17,8 @@ import {
   Key,
   CheckCircle2,
   AlertCircle,
-  BarChart4
+  BarChart4,
+  ArrowRightLeft
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -31,13 +32,15 @@ import {
   CustomerSummary, 
   CustomerDetail, 
   Config,
-  MarketItem
+  MarketItem,
+  AggregatedTradingItem
 } from './types';
 import { 
   getTeamSummary, 
   getCustomerSummaries, 
   getCustomerDetail,
   getMarketBoardData,
+  getAggregatedTradingData,
   cleanNumber
 } from './services/googleSheets';
 
@@ -79,7 +82,7 @@ const App: React.FC = () => {
   });
   const [loginPassword, setLoginPassword] = useState('');
 
-  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'market'>('home');
+  const [view, setView] = useState<'home' | 'detail' | 'admin' | 'market' | 'trading'>('home');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -90,6 +93,7 @@ const App: React.FC = () => {
   const [customers, setCustomers] = useState<CustomerSummary[]>([]);
   const [customerDetail, setCustomerDetail] = useState<CustomerDetail | null>(null);
   const [marketData, setMarketData] = useState<MarketItem[]>([]);
+  const [tradingData, setTradingData] = useState<AggregatedTradingItem[]>([]);
   
   // Admin State
   const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
@@ -174,6 +178,24 @@ const App: React.FC = () => {
       setView('market');
     } catch (e: any) {
       setError(e.message || 'Lỗi tải bảng điện.');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [config]);
+
+  const loadTradingData = useCallback(async (showFullLoader = true) => {
+    if (showFullLoader) setLoading(true);
+    else setIsRefreshing(true);
+    setError(null);
+    try {
+      const customerGids = config.customerSheets.filter(gid => gid !== '1181732765');
+      const data = await getAggregatedTradingData(config.spreadsheetId, customerGids);
+      setTradingData(data);
+      setLastUpdated(new Date());
+      setView('trading');
+    } catch (e: any) {
+      setError(e.message || 'Lỗi tải dữ liệu mua bán.');
     } finally {
       setLoading(false);
       setIsRefreshing(false);
@@ -324,14 +346,19 @@ const App: React.FC = () => {
       <header className="bg-blue-700 text-white sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 w-full">
           <div className="flex justify-between items-center">
-            {view !== 'home' && view !== 'market' ? (
+            {view !== 'home' && view !== 'market' && view !== 'trading' ? (
               <button onClick={() => { setView('home'); setError(null); }} className="p-1 active:scale-90 hover:bg-blue-600 rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
             ) : (
-              <button onClick={() => view === 'market' ? loadMarketData(false) : fetchData(false)} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
+              <button onClick={() => {
+                if(view === 'market') loadMarketData(false);
+                else if(view === 'trading') loadTradingData(false);
+                else fetchData(false);
+              }} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
             )}
             <h1 className="text-lg md:text-xl font-bold truncate px-2">
               {view === 'detail' && customerDetail?.name ? customerDetail.name : 
                view === 'market' ? 'Bảng điện danh mục' : 
+               view === 'trading' ? 'Mua Bán Trading' :
                'Quản lý khách hàng VPS'}
             </h1>
             <div className="flex items-center gap-1">
@@ -346,20 +373,26 @@ const App: React.FC = () => {
       </header>
 
       {/* VIEW SWITCHER TABS (Only on top level views) */}
-      {(view === 'home' || view === 'market') && (
+      {(view === 'home' || view === 'market' || view === 'trading') && (
         <div className="bg-white border-b border-slate-200">
-           <div className="max-w-7xl mx-auto flex">
+           <div className="max-w-7xl mx-auto flex overflow-x-auto">
               <button 
                 onClick={() => { setView('home'); fetchData(); }}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${view === 'home' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'home' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
               >
                 <Users className="w-4 h-4" /> Danh sách khách hàng
               </button>
               <button 
                 onClick={() => loadMarketData()}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors ${view === 'market' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'market' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
               >
                 <BarChart4 className="w-4 h-4" /> Bảng điện danh mục
+              </button>
+              <button 
+                onClick={() => loadTradingData()}
+                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'trading' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
+              >
+                <ArrowRightLeft className="w-4 h-4" /> Mua Bán Trading
               </button>
            </div>
         </div>
@@ -489,6 +522,41 @@ const App: React.FC = () => {
                 </table>
               </div>
            </div>
+        )}
+
+        {view === 'trading' && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+             <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+               <h3 className="font-bold text-slate-700 text-sm md:text-base flex items-center gap-2">
+                 <ArrowRightLeft className="w-4 h-4 text-blue-600" /> Mua bán T+ 0
+               </h3>
+             </div>
+             <div className="overflow-x-auto">
+               <table className="w-full text-xs md:text-sm">
+                 <thead className="bg-white text-slate-500 border-b border-slate-100">
+                   <tr>
+                     <th className="text-left p-3 font-bold">Khách Hàng</th>
+                     <th className="text-center p-3 font-bold">Mã chứng khoán</th>
+                     <th className="text-right p-3 font-bold">Khối lượng mua</th>
+                     <th className="text-right p-3 font-bold">Khối lượng bán</th>
+                   </tr>
+                 </thead>
+                 <tbody className="divide-y divide-slate-50 text-slate-700">
+                   {tradingData.map((item, idx) => (
+                     <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                       <td className="p-3 font-bold text-slate-800">{item.customerName}</td>
+                       <td className="p-3 text-center font-bold text-blue-600">{item.ticker}</td>
+                       <td className="p-3 text-right font-mono font-bold text-green-600">{item.buyVol}</td>
+                       <td className="p-3 text-right font-mono font-bold text-red-500">{item.sellVol}</td>
+                     </tr>
+                   ))}
+                   {tradingData.length === 0 && (
+                      <tr><td colSpan={4} className="p-8 text-center text-slate-400 italic">Không có dữ liệu giao dịch T+0</td></tr>
+                   )}
+                 </tbody>
+               </table>
+             </div>
+          </div>
         )}
 
         {view === 'detail' && customerDetail && (

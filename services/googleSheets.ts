@@ -6,7 +6,8 @@ import {
   TradingActivity, 
   PortfolioItem, 
   StockWeight,
-  MarketItem
+  MarketItem,
+  AggregatedTradingItem
 } from '../types';
 
 // Robust CSV parser
@@ -291,6 +292,59 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
     portfolio,
     weights
   };
+};
+
+export const getAggregatedTradingData = async (spreadsheetId: string, sheetIds: string[]): Promise<AggregatedTradingItem[]> => {
+  const validSheetIds = sheetIds.filter(id => id !== '1181732765');
+  const results: AggregatedTradingItem[] = [];
+
+  const responses = await Promise.allSettled(
+    validSheetIds.map(id => fetchSheetData(spreadsheetId, id))
+  );
+
+  const COL_S_TICKER = 18; // Index 18 (Column S)
+  const COL_U_BUY = 20;    // Index 20 (Column U)
+  const COL_V_SELL = 21;   // Index 21 (Column V)
+
+  // Scan range similar to Customer Detail
+  const START_IDX = 1; 
+  const END_IDX = 12;
+
+  for (const res of responses) {
+    if (res.status === 'fulfilled') {
+      const data = res.value;
+      
+      // Get Customer Name from A1 (Index [0][0])
+      const customerName = (data[0]?.[0] || '').trim() || 'Khách hàng';
+
+      for (let i = START_IDX; i < END_IDX; i++) {
+        if (i >= data.length) break;
+        const row = data[i];
+        if (!row) continue;
+
+        const ticker = (row[COL_S_TICKER] || '').trim().toUpperCase();
+        if (!ticker || ticker.length < 3 || ticker.startsWith('#')) continue;
+
+        const buyRaw = row[COL_U_BUY] || '0';
+        const sellRaw = row[COL_V_SELL] || '0';
+
+        const buyVal = cleanNumber(buyRaw);
+        const sellVal = cleanNumber(sellRaw);
+
+        // Chỉ lấy nếu có Mua HOẶC Bán
+        if (buyVal > 0 || sellVal > 0) {
+          results.push({
+            customerName,
+            ticker,
+            buyVol: buyVal > 0 ? buyRaw : '',
+            sellVol: sellVal > 0 ? sellRaw : ''
+          });
+        }
+      }
+    }
+  }
+
+  return results;
 };
 
 export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string[]): Promise<MarketItem[]> => {

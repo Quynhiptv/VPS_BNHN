@@ -57,6 +57,13 @@ export interface MarketItem {
   low: number;        // Giá thấp
 }
 
+export interface AggregatedTradingItem {
+  customerName: string;
+  ticker: string;
+  buyVol: string;
+  sellVol: string;
+}
+
 export interface Config {
   spreadsheetId: string;
   customerSheets: string[];

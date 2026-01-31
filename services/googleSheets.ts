@@ -347,9 +347,8 @@ export const getAggregatedTradingData = async (spreadsheetId: string, sheetIds: 
   return results;
 };
 
-export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string[]): Promise<MarketItem[]> => {
-  // BƯỚC 1: Quét danh sách Mã từ các sheet Khách hàng (S2:S12)
-  // Chặn tuyệt đối GID 1181732765 không cho vào danh sách quét mã
+// NEW: Exported helper to get tickers separately
+export const getUniqueTickersFromCustomers = async (spreadsheetId: string, sheetIds: string[]): Promise<Set<string>> => {
   const validSheetIds = sheetIds.filter(id => id !== '1181732765');
   const uniqueTickers = new Set<string>();
 
@@ -357,19 +356,16 @@ export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string
     validSheetIds.map(id => fetchSheetData(spreadsheetId, id))
   );
 
-  const CUSTOMER_START_IDX = 1; // Row 2 (Index 1)
-  const CUSTOMER_END_IDX = 12;  // Row 12 (Index 11) -> 12 exclusive (Loop < 12)
+  const CUSTOMER_START_IDX = 1; 
+  const CUSTOMER_END_IDX = 12;
 
   for (const result of customerResults) {
     if (result.status === 'fulfilled') {
       const data = result.value;
-      // Duyệt từ hàng 2 đến hàng 12
       for (let i = CUSTOMER_START_IDX; i < CUSTOMER_END_IDX; i++) {
         if (i >= data.length) break;
         const row = data[i];
         if (!row) continue;
-
-        // Cột S là cột thứ 19 -> Index 18
         const ticker = (row[18] || '').trim().toUpperCase(); 
         if (ticker && ticker.length >= 3 && !ticker.startsWith('#')) {
           uniqueTickers.add(ticker);
@@ -377,10 +373,20 @@ export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string
       }
     }
   }
+  return uniqueTickers;
+};
+
+export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string[], cachedTickers?: Set<string>): Promise<MarketItem[]> => {
+  let uniqueTickers = cachedTickers;
+
+  // BƯỚC 1: Nếu chưa có Cache, quét danh sách Mã từ các sheet Khách hàng
+  if (!uniqueTickers) {
+    uniqueTickers = await getUniqueTickersFromCustomers(spreadsheetId, sheetIds);
+  }
 
   if (uniqueTickers.size === 0) return [];
 
-  // BƯỚC 2: Tải dữ liệu từ Google Sheet Bảng điện
+  // BƯỚC 2: Tải dữ liệu từ Google Sheet Bảng điện (chỉ 1 request)
   const MARKET_SSID = '13z2aWAtAdjdxQ83vttmicRk9dXd6WqGiQoedGjHFD5c';
   const MARKET_GID = '1628670680';
 

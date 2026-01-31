@@ -41,6 +41,7 @@ import {
   getCustomerDetail,
   getMarketBoardData,
   getAggregatedTradingData,
+  getUniqueTickersFromCustomers,
   cleanNumber
 } from './services/googleSheets';
 
@@ -95,6 +96,9 @@ const App: React.FC = () => {
   const [marketData, setMarketData] = useState<MarketItem[]>([]);
   const [tradingData, setTradingData] = useState<AggregatedTradingItem[]>([]);
   
+  // Market Board Caching
+  const [cachedTickers, setCachedTickers] = useState<Set<string> | null>(null);
+
   // Admin State
   const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -166,13 +170,24 @@ const App: React.FC = () => {
   }, [config.spreadsheetId]);
 
   const loadMarketData = useCallback(async (showFullLoader = true) => {
+    // If showFullLoader is true, we treat it as a full reset/scan to get tickers
     if (showFullLoader) setLoading(true);
     else setIsRefreshing(true);
     setError(null);
     try {
-      // Truyền danh sách sheet khách hàng để lọc mã
       const customerGids = config.customerSheets.filter(gid => gid !== '1181732765');
-      const marketBoard = await getMarketBoardData(config.spreadsheetId, customerGids);
+      
+      // Determine if we need to scan for tickers or use cache
+      let tickersToUse = cachedTickers;
+      
+      if (showFullLoader || !tickersToUse) {
+         tickersToUse = await getUniqueTickersFromCustomers(config.spreadsheetId, customerGids);
+         setCachedTickers(tickersToUse);
+      }
+      
+      // Fetch prices using the (now guaranteed) tickers
+      const marketBoard = await getMarketBoardData(config.spreadsheetId, customerGids, tickersToUse || undefined);
+      
       setMarketData(marketBoard);
       setLastUpdated(new Date());
       setView('market');
@@ -182,7 +197,7 @@ const App: React.FC = () => {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [config]);
+  }, [config, cachedTickers]);
 
   const loadTradingData = useCallback(async (showFullLoader = true) => {
     if (showFullLoader) setLoading(true);
@@ -211,13 +226,14 @@ const App: React.FC = () => {
     }
   }, [fetchData, isAuthenticated]);
 
-  // Auto Refresh Market Data Every 10 Seconds when in 'market' view
+  // Auto Refresh Market Data Every 3 Seconds when in 'market' view
+  // This interval is fast because it uses the cached tickers list
   useEffect(() => {
     let interval: any;
     if (view === 'market' && isAuthenticated) {
        interval = setInterval(() => {
           loadMarketData(false); // Silent refresh
-       }, 10000); // 10 seconds
+       }, 3000); // 3 seconds for "jumping" effect
     }
     return () => {
       if (interval) clearInterval(interval);

@@ -18,7 +18,9 @@ import {
   CheckCircle2,
   AlertCircle,
   BarChart4,
-  ArrowRightLeft
+  ArrowRightLeft,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -98,6 +100,9 @@ const App: React.FC = () => {
   
   // Market Board Caching
   const [cachedTickers, setCachedTickers] = useState<Set<string> | null>(null);
+
+  // Sorting State for Market Board
+  const [sortConfig, setSortConfig] = useState<{ key: keyof MarketItem; direction: 'asc' | 'desc' } | null>(null);
 
   // Admin State
   const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
@@ -216,6 +221,36 @@ const App: React.FC = () => {
       setIsRefreshing(false);
     }
   }, [config]);
+
+  // Sorting Logic for Market Board
+  const handleSort = (key: keyof MarketItem) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const sortedMarketData = useMemo(() => {
+    let sortableItems = [...marketData];
+    if (sortConfig !== null) {
+      sortableItems.sort((a, b) => {
+        // Handle undefined or null values safely
+        const aValue = a[sortConfig.key];
+        const bValue = b[sortConfig.key];
+
+        if (aValue < bValue) {
+          return sortConfig.direction === 'asc' ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === 'asc' ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [marketData, sortConfig]);
+
 
   // Fetch data automatically on mount if authenticated
   useEffect(() => { 
@@ -509,15 +544,48 @@ const App: React.FC = () => {
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs md:text-sm">
-                  <thead className="bg-white text-slate-500 border-b border-slate-100">
+                  <thead className="bg-white text-slate-500 border-b border-slate-100 select-none">
                     <tr>
-                      <th className="text-left p-3 font-bold w-1/3">Mã</th>
-                      <th className="text-right p-3 font-bold w-1/3">Giá hiện tại</th>
-                      <th className="text-right p-3 font-bold w-1/3">Tăng giảm</th>
+                      <th 
+                        className="text-left p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        onClick={() => handleSort('ticker')}
+                      >
+                        <div className="flex items-center gap-1">
+                          Mã
+                          {sortConfig?.key === 'ticker' && (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                          )}
+                          {sortConfig?.key !== 'ticker' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-right p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        onClick={() => handleSort('currentPrice')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Giá hiện tại
+                          {sortConfig?.key === 'currentPrice' && (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                          )}
+                          {sortConfig?.key !== 'currentPrice' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                        </div>
+                      </th>
+                      <th 
+                        className="text-right p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        onClick={() => handleSort('change')}
+                      >
+                        <div className="flex items-center justify-end gap-1">
+                          Tăng giảm
+                          {sortConfig?.key === 'change' && (
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                          )}
+                          {sortConfig?.key !== 'change' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                        </div>
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-slate-700">
-                    {marketData.map((item, idx) => {
+                    {sortedMarketData.map((item, idx) => {
                       const colorClass = item.change < 0 ? 'text-red-500' : item.change > 0 ? 'text-green-500' : 'text-yellow-500';
                       return (
                         <tr key={idx} className="hover:bg-blue-50 transition-colors">
@@ -531,7 +599,7 @@ const App: React.FC = () => {
                         </tr>
                       );
                     })}
-                    {marketData.length === 0 && (
+                    {sortedMarketData.length === 0 && (
                        <tr><td colSpan={3} className="p-8 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
                     )}
                   </tbody>

@@ -294,28 +294,29 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
 };
 
 export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string[]): Promise<MarketItem[]> => {
-  // QUAN TRỌNG: Chặn tuyệt đối GID 1181732765 không cho vào danh sách quét mã
+  // BƯỚC 1: Quét danh sách Mã từ các sheet Khách hàng (S2:S12)
+  // Chặn tuyệt đối GID 1181732765 không cho vào danh sách quét mã
   const validSheetIds = sheetIds.filter(id => id !== '1181732765');
   const uniqueTickers = new Set<string>();
 
-  // 1. Quét dữ liệu từ Sheet để lấy danh sách mã (Cột S, dòng 2-12)
-  // Chỉ quét từ các sheet hợp lệ, đã loại bỏ sheet tổng hợp
-  const results = await Promise.allSettled(
+  const customerResults = await Promise.allSettled(
     validSheetIds.map(id => fetchSheetData(spreadsheetId, id))
   );
 
-  const START_IDX = 1; // Row 2
-  const END_IDX = 12;  // Row 12 (Index 11) -> 13 exclusive
+  const CUSTOMER_START_IDX = 1; // Row 2 (Index 1)
+  const CUSTOMER_END_IDX = 12;  // Row 12 (Index 11) -> 12 exclusive (Loop < 12)
 
-  for (const result of results) {
+  for (const result of customerResults) {
     if (result.status === 'fulfilled') {
       const data = result.value;
-      for (let i = START_IDX; i < END_IDX; i++) {
+      // Duyệt từ hàng 2 đến hàng 12
+      for (let i = CUSTOMER_START_IDX; i < CUSTOMER_END_IDX; i++) {
         if (i >= data.length) break;
         const row = data[i];
         if (!row) continue;
 
-        const ticker = (row[18] || '').trim().toUpperCase(); // Column S (Index 18)
+        // Cột S là cột thứ 19 -> Index 18
+        const ticker = (row[18] || '').trim().toUpperCase(); 
         if (ticker && ticker.length >= 3 && !ticker.startsWith('#')) {
           uniqueTickers.add(ticker);
         }
@@ -323,60 +324,48 @@ export const getMarketBoardData = async (spreadsheetId: string, sheetIds: string
     }
   }
 
-  const tickerArray = Array.from(uniqueTickers).sort();
-  if (tickerArray.length === 0) return [];
+  if (uniqueTickers.size === 0) return [];
 
-  // 2. Lấy dữ liệu Realtime từ DNSE (Entrade) API
-  // Nguồn này hỗ trợ lấy nhiều mã cùng lúc và CORS khá thoải mái.
+  // BƯỚC 2: Tải dữ liệu từ Google Sheet Bảng điện
+  const MARKET_SSID = '13z2aWAtAdjdxQ83vttmicRk9dXd6WqGiQoedGjHFD5c';
+  const MARKET_GID = '1628670680';
+
   try {
-     const symbols = tickerArray.join(',');
-     const response = await fetch(`https://services.entrade.com.vn/market-data-service/v1/snapshots/stock?symbols=${symbols}`);
-     
-     if (!response.ok) {
-       throw new Error(`API DNSE trả về lỗi: ${response.status}`);
-     }
+    const marketData = await fetchSheetData(MARKET_SSID, MARKET_GID);
+    
+    // Row 1 là Header, lấy dữ liệu từ Row 2 trở đi
+    const START_IDX = 1;
+    const result: MarketItem[] = [];
 
-     const json = await response.json();
-     // Cấu trúc DNSE: { list: [ { symbol: 'HPG', lastPrice: 29500, change: -100, high: 29600, low: 29400 }, ... ] }
-     
-     const dataMap = new Map();
-     if (json.list && Array.isArray(json.list)) {
-        json.list.forEach((item: any) => {
-           if (item && item.symbol) {
-             dataMap.set(item.symbol, item);
-           }
+    for (let i = START_IDX; i < marketData.length; i++) {
+      const row = marketData[i];
+      if (!row || row.length === 0) continue;
+
+      // Cột A (Index 0): Tên Mã
+      const ticker = (row[0] || '').trim().toUpperCase();
+      
+      // BƯỚC 3: Chỉ lấy dữ liệu nếu mã có trong danh sách khách hàng
+      if (uniqueTickers.has(ticker)) {
+        // Cột B (Index 1): Giá hiện Tại
+        const price = cleanNumber(row[1]);
+
+        // Cột C (Index 2): Tăng giảm
+        const change = cleanNumber(row[2]);
+
+        result.push({
+          ticker: ticker,
+          currentPrice: price,
+          change: change,
+          high: 0,
+          low: 0
         });
-     }
+      }
+    }
 
-     return tickerArray.map(ticker => {
-        const item = dataMap.get(ticker);
-        if (item) {
-          return {
-            ticker: ticker,
-            currentPrice: item.lastPrice || 0,
-            change: item.change || 0,
-            high: item.high || 0,
-            low: item.low || 0
-          } as MarketItem;
-        }
-        return {
-           ticker,
-           currentPrice: 0,
-           change: 0,
-           high: 0,
-           low: 0
-        } as MarketItem;
-     });
+    return result;
 
   } catch (error) {
-     console.error("Lỗi lấy dữ liệu thị trường (DNSE):", error);
-     // Trả về danh sách rỗng để không crash UI, hiển thị 0
-     return tickerArray.map(t => ({
-         ticker: t,
-         currentPrice: 0,
-         change: 0,
-         high: 0,
-         low: 0
-     }));
+     console.error("Lỗi lấy dữ liệu bảng điện từ Sheet:", error);
+     return [];
   }
 };

@@ -166,6 +166,7 @@ const App: React.FC = () => {
     else setIsRefreshing(true);
     setError(null);
     try {
+      // Truyền danh sách sheet khách hàng để lọc mã
       const customerGids = config.customerSheets.filter(gid => gid !== '1181732765');
       const marketBoard = await getMarketBoardData(config.spreadsheetId, customerGids);
       setMarketData(marketBoard);
@@ -187,6 +188,20 @@ const App: React.FC = () => {
       setLoading(false);
     }
   }, [fetchData, isAuthenticated]);
+
+  // Auto Refresh Market Data Every 10 Seconds when in 'market' view
+  useEffect(() => {
+    let interval: any;
+    if (view === 'market' && isAuthenticated) {
+       interval = setInterval(() => {
+          loadMarketData(false); // Silent refresh
+       }, 10000); // 10 seconds
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [view, isAuthenticated, loadMarketData]);
+
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,20 +266,13 @@ const App: React.FC = () => {
     saveConfig(updated);
   };
 
-  // Helper to format stock price (DNSE returns price as integer e.g. 29500)
-  // We want to display 29.50
+  // Helper to format stock price
   const formatPrice = (price: number) => {
     if (price === 0) return '-';
-    // DNSE returns full price (e.g. 29500), we want to show 29.50
+    // Logic: if price > 1000, divide by 1000 for display (e.g. 29500 -> 29.50)
+    // If it's small (e.g. 29.5), keep it.
     const displayPrice = price > 1000 ? price / 1000 : price;
     return displayPrice.toFixed(2);
-  };
-
-  const formatChange = (change: number) => {
-     if (change === 0) return '-';
-     // DNSE returns full change (e.g. -100 or 500), we want to show -0.10 or +0.50
-     const displayChange = change > 1000 || change < -1000 || Math.abs(change) >= 100 ? change / 1000 : change;
-     return (displayChange > 0 ? '+' : '') + displayChange.toFixed(2);
   };
 
   // --- LOCK SCREEN RENDER ---
@@ -447,36 +455,35 @@ const App: React.FC = () => {
            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
               <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                 <h3 className="font-bold text-slate-700 text-sm md:text-base flex items-center gap-2">
-                  <BarChart4 className="w-4 h-4 text-blue-600" /> Danh mục tổng hợp (Giá trực tuyến - Nguồn DNSE (Live))
+                  <BarChart4 className="w-4 h-4 text-blue-600" /> Danh mục tổng hợp (Nguồn Google Sheet)
                 </h3>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs md:text-sm">
                   <thead className="bg-white text-slate-500 border-b border-slate-100">
                     <tr>
-                      <th className="text-left p-3 font-bold">Mã</th>
-                      <th className="text-right p-3 font-bold">Giá hiện tại</th>
-                      <th className="text-right p-3 font-bold">Tăng giảm</th>
-                      <th className="text-right p-3 font-bold">Giá cao</th>
-                      <th className="text-right p-3 font-bold">Giá thấp</th>
+                      <th className="text-left p-3 font-bold w-1/3">Mã</th>
+                      <th className="text-right p-3 font-bold w-1/3">Giá hiện tại</th>
+                      <th className="text-right p-3 font-bold w-1/3">Tăng giảm</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50 text-slate-700">
-                    {marketData.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                        <td className="p-3 font-bold text-blue-600">{item.ticker}</td>
-                        <td className={`p-3 text-right font-mono font-bold ${item.change > 0 ? 'text-green-600' : item.change < 0 ? 'text-red-500' : 'text-orange-500'}`}>
-                          {formatPrice(item.currentPrice)}
-                        </td>
-                        <td className={`p-3 text-right font-mono font-bold ${item.change > 0 ? 'text-green-500' : item.change < 0 ? 'text-red-500' : 'text-slate-400'}`}>
-                          {formatChange(item.change)}
-                        </td>
-                        <td className="p-3 text-right font-mono text-slate-600">{formatPrice(item.high)}</td>
-                        <td className="p-3 text-right font-mono text-slate-600">{formatPrice(item.low)}</td>
-                      </tr>
-                    ))}
+                    {marketData.map((item, idx) => {
+                      const colorClass = item.change < 0 ? 'text-red-500' : item.change > 0 ? 'text-green-500' : 'text-yellow-500';
+                      return (
+                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
+                          <td className={`p-3 font-bold ${colorClass}`}>{item.ticker}</td>
+                          <td className={`p-3 text-right font-mono font-bold ${colorClass}`}>
+                            {formatPrice(item.currentPrice)}
+                          </td>
+                          <td className={`p-3 text-right font-mono font-bold ${colorClass}`}>
+                            {item.change > 0 ? '+' : ''}{item.change}%
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {marketData.length === 0 && (
-                       <tr><td colSpan={5} className="p-8 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
+                       <tr><td colSpan={3} className="p-8 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
                     )}
                   </tbody>
                 </table>

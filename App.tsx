@@ -105,6 +105,9 @@ const App: React.FC = () => {
   // Sorting State for Market Board
   const [sortConfig, setSortConfig] = useState<{ key: keyof MarketItem; direction: 'asc' | 'desc' } | null>(null);
 
+  // Sorting State for Customer List
+  const [customerSortConfig, setCustomerSortConfig] = useState<{ key: 'name' | 'pnlPercent'; direction: 'asc' | 'desc' } | null>(null);
+
   // Admin State
   const [adminPasswordInput, setAdminPasswordInput] = useState(''); 
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
@@ -251,6 +254,34 @@ const App: React.FC = () => {
     }
     return sortableItems;
   }, [marketData, sortConfig]);
+
+  // Sorting Logic for Customer List
+  const handleCustomerSort = (key: 'name' | 'pnlPercent') => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (customerSortConfig && customerSortConfig.key === key && customerSortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setCustomerSortConfig({ key, direction });
+  };
+
+  const sortedCustomers = useMemo(() => {
+    let items = [...customers];
+    if (customerSortConfig !== null) {
+      items.sort((a, b) => {
+        if (customerSortConfig.key === 'name') {
+           return customerSortConfig.direction === 'asc' 
+             ? a.name.localeCompare(b.name)
+             : b.name.localeCompare(a.name);
+        } else if (customerSortConfig.key === 'pnlPercent') {
+           const valA = cleanNumber(a.pnlPercent);
+           const valB = cleanNumber(b.pnlPercent);
+           return customerSortConfig.direction === 'asc' ? valA - valB : valB - valA;
+        }
+        return 0;
+      });
+    }
+    return items;
+  }, [customers, customerSortConfig]);
 
 
   // Fetch data automatically on mount if authenticated
@@ -513,8 +544,32 @@ const App: React.FC = () => {
                 <h2 className="text-sm md:text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-600" /> Danh sách khách hàng
                 </h2>
+                {/* Sorting Headers */}
+                <div className="flex justify-between items-center px-4 py-2 text-[10px] md:text-xs font-bold text-slate-400 bg-slate-50/50 rounded-t-xl">
+                   <div 
+                     onClick={() => handleCustomerSort('name')} 
+                     className="cursor-pointer flex items-center gap-1 hover:text-blue-600 transition-colors select-none group"
+                   >
+                     Tên Khách Hàng
+                     {customerSortConfig?.key === 'name' && (
+                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                     )}
+                     {customerSortConfig?.key !== 'name' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                   </div>
+                   <div 
+                     onClick={() => handleCustomerSort('pnlPercent')} 
+                     className="cursor-pointer flex items-center gap-1 hover:text-blue-600 transition-colors select-none group"
+                   >
+                     % Lãi/Lỗ
+                     {customerSortConfig?.key === 'pnlPercent' && (
+                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                     )}
+                     {customerSortConfig?.key !== 'pnlPercent' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                   </div>
+                </div>
+
                 <div className="space-y-3">
-                  {customers.map((c) => (
+                  {sortedCustomers.map((c) => (
                     <div key={c.id} onClick={() => loadCustomerDetail(c.id)} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 active:scale-[0.99] transition-all cursor-pointer group">
                       <div className="flex items-center gap-3 md:gap-4">
                          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs md:text-sm shadow-sm group-hover:bg-blue-200 transition-colors">

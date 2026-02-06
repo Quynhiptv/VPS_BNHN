@@ -71,15 +71,15 @@ const App: React.FC = () => {
         const combinedSheets = Array.from(new Set([...INITIAL_GIDS, ...(parsed.customerSheets || [])]));
         const accessPasswords = parsed.accessPasswords && Array.isArray(parsed.accessPasswords) && parsed.accessPasswords.length > 0 
           ? parsed.accessPasswords 
-          : ['123123123'];
+          : ['123123123', '0936937737'];
         // Filter out the forbidden summary sheet ID if it somehow got saved
         const filteredSheets = combinedSheets.filter(id => id !== '1181732765');
         return { ...parsed, customerSheets: filteredSheets, accessPasswords };
       } catch (e) {
-        return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123'] };
+        return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123', '0936937737'] };
       }
     }
-    return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123'] };
+    return { spreadsheetId: DEFAULT_SPREADSHEET_ID, customerSheets: INITIAL_GIDS, accessPasswords: ['123123123', '0936937737'] };
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {

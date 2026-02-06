@@ -20,7 +20,8 @@ import {
   BarChart4,
   ArrowRightLeft,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  LayoutDashboard
 } from 'lucide-react';
 import { 
   PieChart, 
@@ -425,94 +426,102 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans">
-      <header className="bg-blue-700 text-white sticky top-0 z-50 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 w-full">
-          <div className="flex justify-between items-center">
+    <div className="min-h-screen flex flex-col bg-slate-50/50 text-slate-900 font-sans">
+      <header className="bg-blue-700 text-white sticky top-0 z-50 shadow-md">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 w-full">
+          <div className="flex justify-between items-center gap-2">
             {view !== 'home' && view !== 'market' && view !== 'trading' ? (
-              <button onClick={() => { setView('home'); setError(null); }} className="p-1 active:scale-90 hover:bg-blue-600 rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
+              <button onClick={() => { setView('home'); setError(null); }} className="p-2 active:scale-95 hover:bg-white/10 rounded-full transition-colors"><ArrowLeft className="w-6 h-6" /></button>
             ) : (
               <button onClick={() => {
                 if(view === 'market') loadMarketData(false);
                 else if(view === 'trading') loadTradingData(false);
                 else fetchData(false);
-              }} className={`p-1 hover:bg-blue-600 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-70" /></button>
+              }} className={`p-2 hover:bg-white/10 rounded-full transition-colors ${isRefreshing ? 'animate-spin' : ''}`}><RefreshCcw className="w-5 h-5 opacity-90" /></button>
             )}
-            <h1 className="text-lg md:text-xl font-bold truncate px-2">
+            <h1 className="text-lg md:text-2xl font-bold truncate flex-1 text-center md:text-left px-2">
               {view === 'detail' && customerDetail?.name ? customerDetail.name : 
                view === 'market' ? 'Bảng điện danh mục' : 
                view === 'trading' ? 'Mua Bán Trading' :
                'Quản lý khách hàng VPS'}
             </h1>
             <div className="flex items-center gap-1">
-              <button onClick={() => setView('admin')} className="p-1 hover:bg-blue-600 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-70" /></button>
+              <button onClick={() => setView('admin')} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Settings className="w-6 h-6 opacity-90" /></button>
             </div>
           </div>
-          <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-bold text-blue-100 max-w-7xl mx-auto">
-            <span className="uppercase tracking-tight">BNHN - Nguyễn Thị Thương</span>
-            <span className="flex items-center gap-1 bg-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm"><Clock className="w-3 h-3" /> {lastUpdated.toLocaleTimeString()}</span>
+          <div className="flex justify-between items-center mt-2 text-[10px] md:text-xs font-medium text-blue-100 max-w-7xl mx-auto px-1">
+            <span className="uppercase tracking-wide opacity-80">BNHN - Nguyễn Thị Thương</span>
+            <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-0.5 rounded-full backdrop-blur-sm shadow-sm"><Clock className="w-3 h-3" /> {lastUpdated.toLocaleTimeString()}</span>
           </div>
         </div>
       </header>
 
-      {/* VIEW SWITCHER TABS (Only on top level views) */}
+      {/* VIEW SWITCHER TABS (Modern Segmented Control) */}
       {(view === 'home' || view === 'market' || view === 'trading') && (
-        <div className="bg-white border-b border-slate-200">
-           <div className="max-w-7xl mx-auto flex overflow-x-auto">
-              <button 
-                onClick={() => { setView('home'); fetchData(); }}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'home' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-              >
-                <Users className="w-4 h-4" /> Danh sách khách hàng
-              </button>
-              <button 
-                onClick={() => loadMarketData()}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'market' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-              >
-                <BarChart4 className="w-4 h-4" /> Bảng điện danh mục
-              </button>
-              <button 
-                onClick={() => loadTradingData()}
-                className={`flex-1 py-3 text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-colors min-w-[120px] ${view === 'trading' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-              >
-                <ArrowRightLeft className="w-4 h-4" /> Mua Bán Trading
-              </button>
+        <div className="bg-white border-b border-slate-200 sticky top-[72px] md:top-[88px] z-40 shadow-sm">
+           <div className="max-w-7xl mx-auto px-4 py-3 overflow-x-auto no-scrollbar">
+             <div className="flex p-1 bg-slate-100 rounded-xl min-w-max md:w-fit mx-auto">
+                <button 
+                  onClick={() => { setView('home'); fetchData(); }}
+                  className={`flex-1 px-4 md:px-8 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all whitespace-nowrap ${view === 'home' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <Users className="w-4 h-4" /> Danh sách khách hàng
+                </button>
+                <button 
+                  onClick={() => loadMarketData()}
+                  className={`flex-1 px-4 md:px-8 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all whitespace-nowrap ${view === 'market' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <BarChart4 className="w-4 h-4" /> Bảng điện
+                </button>
+                <button 
+                  onClick={() => loadTradingData()}
+                  className={`flex-1 px-4 md:px-8 py-2 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all whitespace-nowrap ${view === 'trading' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                >
+                  <ArrowRightLeft className="w-4 h-4" /> Trading T0
+                </button>
+             </div>
            </div>
         </div>
       )}
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 overflow-y-auto">
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-6 overflow-y-auto pb-10">
         {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-lg text-xs md:text-sm mb-4 border border-red-100 overflow-x-auto shadow-sm">
-             <pre className="whitespace-pre-wrap font-sans">{error}</pre>
+          <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm mb-6 border border-red-100 flex items-start gap-3 shadow-sm">
+             <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+             <pre className="whitespace-pre-wrap font-sans font-medium">{error}</pre>
           </div>
         )}
 
         {view === 'home' && (
-          <div className="space-y-6 animate-in fade-in duration-500">
+          <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500">
             {/* Team Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-5">
               {[
-                { label: 'Tổng vốn Team', value: teamSummary?.totalCapital, pnl: false },
-                { label: 'Giá trị thị trường', value: teamSummary?.marketValue, pnl: false },
-                { label: 'Lãi lỗ hiện tại', value: teamSummary?.pnl, pnl: true },
-                { label: 'Lãi lỗ trong ngày', value: totalIntradayPnl, pnl: true },
-                { label: '% Lãi lỗ', value: teamSummary?.pnlPercent, pnl: true }
+                { label: 'Tổng vốn Team', value: teamSummary?.totalCapital, pnl: false, icon: Wallet },
+                { label: 'Giá trị thị trường', value: teamSummary?.marketValue, pnl: false, icon: PieChartIcon },
+                { label: 'Lãi lỗ hiện tại', value: teamSummary?.pnl, pnl: true, icon: TrendingUp },
+                { label: 'Lãi lỗ trong ngày', value: totalIntradayPnl, pnl: true, icon: Clock },
+                { label: '% Lãi lỗ', value: teamSummary?.pnlPercent, pnl: true, icon: BarChart4 }
               ].map((c, i) => (
-                <div key={i} className={`bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow ${i === 3 || i === 4 ? 'md:col-span-1' : ''}`}>
-                  <p className="text-[10px] md:text-xs font-bold text-slate-400 uppercase mb-1">{c.label}</p>
-                  <p className={`text-sm md:text-xl font-black ${c.pnl ? getPnlColor(c.value || '') : 'text-slate-800'} break-words`}>{c.value || '0'}</p>
+                <div key={i} className={`bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:-translate-y-1 transition-all duration-300 ${i === 3 || i === 4 ? 'md:col-span-1' : ''}`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`p-1.5 rounded-lg ${c.pnl ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'}`}>
+                      <c.icon className="w-3.5 h-3.5" />
+                    </div>
+                    <p className="text-[11px] md:text-xs font-bold text-slate-500 uppercase tracking-wide">{c.label}</p>
+                  </div>
+                  <p className={`text-sm md:text-xl font-black ${c.pnl ? getPnlColor(c.value || '') : 'text-slate-800'} break-words tracking-tight`}>{c.value || '0'}</p>
                 </div>
               ))}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Chart */}
-              <section className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-                <h2 className="text-sm md:text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-purple-600" /> Tỷ trọng vốn
+              <section className="lg:col-span-1 bg-white p-4 md:p-6 rounded-2xl shadow-md border border-slate-100 flex flex-col h-fit">
+                <h2 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <PieChartIcon className="w-5 h-5 text-purple-600" /> Tỷ trọng vốn
                 </h2>
-                <div className="flex-1 min-h-[250px] md:min-h-[300px]">
+                <div className="flex-1 min-h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -523,15 +532,16 @@ const App: React.FC = () => {
                         cy="50%"
                         outerRadius="80%"
                         fill="#8884d8"
-                        paddingAngle={2}
+                        paddingAngle={3}
+                        cornerRadius={4}
                       >
                         {teamDistribution.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
                         ))}
                       </Pie>
                       <Tooltip 
-                        contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} 
-                        itemStyle={{fontSize: '12px', fontWeight: 600}} 
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px'}} 
+                        itemStyle={{fontSize: '13px', fontWeight: 600, color: '#334155'}} 
                         formatter={(value: number) => value.toLocaleString('vi-VN')}
                       />
                     </PieChart>
@@ -540,47 +550,49 @@ const App: React.FC = () => {
               </section>
 
               {/* Customer List */}
-              <section className="lg:col-span-2 bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <h2 className="text-sm md:text-base font-bold text-slate-700 mb-4 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" /> Danh sách khách hàng
-                </h2>
+              <section className="lg:col-span-2 bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden flex flex-col">
+                <div className="p-4 md:p-6 border-b border-slate-100 bg-white">
+                   <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
+                     <Users className="w-5 h-5 text-blue-600" /> Danh sách khách hàng
+                   </h2>
+                </div>
                 {/* Sorting Headers */}
-                <div className="flex justify-between items-center px-4 py-2 text-[10px] md:text-xs font-bold text-slate-400 bg-slate-50/50 rounded-t-xl">
+                <div className="flex justify-between items-center px-4 md:px-6 py-3 text-xs font-bold text-slate-500 bg-slate-50/80 border-b border-slate-100">
                    <div 
                      onClick={() => handleCustomerSort('name')} 
-                     className="cursor-pointer flex items-center gap-1 hover:text-blue-600 transition-colors select-none group"
+                     className="cursor-pointer flex items-center gap-1.5 hover:text-blue-600 transition-colors select-none group"
                    >
                      Tên Khách Hàng
                      {customerSortConfig?.key === 'name' && (
-                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
                      )}
-                     {customerSortConfig?.key !== 'name' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                     {customerSortConfig?.key !== 'name' && <ArrowUp className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100" />}
                    </div>
                    <div 
                      onClick={() => handleCustomerSort('pnlPercent')} 
-                     className="cursor-pointer flex items-center gap-1 hover:text-blue-600 transition-colors select-none group"
+                     className="cursor-pointer flex items-center gap-1.5 hover:text-blue-600 transition-colors select-none group"
                    >
                      % Lãi/Lỗ
                      {customerSortConfig?.key === 'pnlPercent' && (
-                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                        customerSortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
                      )}
-                     {customerSortConfig?.key !== 'pnlPercent' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
+                     {customerSortConfig?.key !== 'pnlPercent' && <ArrowUp className="w-3.5 h-3.5 text-slate-300 opacity-0 group-hover:opacity-100" />}
                    </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="divide-y divide-slate-50 max-h-[600px] overflow-y-auto custom-scrollbar">
                   {sortedCustomers.map((c) => (
-                    <div key={c.id} onClick={() => loadCustomerDetail(c.id)} className="flex items-center justify-between p-3 md:p-4 rounded-xl bg-slate-50 border border-slate-100 hover:bg-blue-50 active:scale-[0.99] transition-all cursor-pointer group">
-                      <div className="flex items-center gap-3 md:gap-4">
-                         <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs md:text-sm shadow-sm group-hover:bg-blue-200 transition-colors">
+                    <div key={c.id} onClick={() => loadCustomerDetail(c.id)} className="flex items-center justify-between p-4 md:p-5 hover:bg-blue-50/50 active:bg-blue-50 transition-colors cursor-pointer group">
+                      <div className="flex items-center gap-4">
+                         <div className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-sm shadow-inner group-hover:bg-blue-100 group-hover:text-blue-700 transition-colors">
                            {c.name.charAt(0)}
                          </div>
                          <div>
-                           <p className="font-bold text-slate-800 text-sm md:text-base">{c.name}</p>
-                           <p className="text-[10px] md:text-xs text-slate-500 font-mono mt-0.5">Vốn: {c.totalCapital}</p>
+                           <p className="font-bold text-slate-800 text-sm md:text-base group-hover:text-blue-700 transition-colors">{c.name}</p>
+                           <p className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-1"><Wallet className="w-3 h-3" /> {c.totalCapital}</p>
                          </div>
                       </div>
-                      <div className={`text-right ${getPnlColor(c.pnlPercent)}`}>
+                      <div className={`text-right ${getPnlColor(c.pnlPercent)} bg-slate-50 px-3 py-1.5 rounded-lg group-hover:bg-white group-hover:shadow-sm transition-all`}>
                          <span className="text-sm md:text-base font-bold block">{c.pnlPercent}</span>
                       </div>
                     </div>
@@ -592,71 +604,72 @@ const App: React.FC = () => {
         )}
         
         {view === 'market' && (
-           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
-              <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                <h3 className="font-bold text-slate-700 text-sm md:text-base flex items-center gap-2">
-                  <BarChart4 className="w-4 h-4 text-blue-600" /> Danh mục tổng hợp (Nguồn Google Sheet)
-                </h3>
+           <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+              <div className="bg-white px-4 md:px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><BarChart4 className="w-5 h-5" /></div>
+                <h3 className="font-bold text-slate-800 text-base">Danh mục tổng hợp</h3>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs md:text-sm">
-                  <thead className="bg-white text-slate-500 border-b border-slate-100 select-none">
+              <div className="overflow-x-auto w-full">
+                <table className="w-full text-sm min-w-[600px]">
+                  <thead className="bg-slate-50/80 text-slate-500 border-b border-slate-200 select-none">
                     <tr>
                       <th 
-                        className="text-left p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        className="text-left p-4 font-bold w-1/3 cursor-pointer hover:text-blue-600 transition-colors group"
                         onClick={() => handleSort('ticker')}
                       >
-                        <div className="flex items-center gap-1">
-                          Mã
+                        <div className="flex items-center gap-1.5">
+                          Mã CK
                           {sortConfig?.key === 'ticker' && (
-                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
                           )}
-                          {sortConfig?.key !== 'ticker' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
                         </div>
                       </th>
                       <th 
-                        className="text-right p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        className="text-right p-4 font-bold w-1/3 cursor-pointer hover:text-blue-600 transition-colors group"
                         onClick={() => handleSort('currentPrice')}
                       >
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-end gap-1.5">
                           Giá hiện tại
                           {sortConfig?.key === 'currentPrice' && (
-                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
                           )}
-                          {sortConfig?.key !== 'currentPrice' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
                         </div>
                       </th>
                       <th 
-                        className="text-right p-3 font-bold w-1/3 cursor-pointer hover:bg-slate-50 hover:text-blue-600 transition-colors group"
+                        className="text-right p-4 font-bold w-1/3 cursor-pointer hover:text-blue-600 transition-colors group"
                         onClick={() => handleSort('change')}
                       >
-                        <div className="flex items-center justify-end gap-1">
-                          Tăng giảm
+                        <div className="flex items-center justify-end gap-1.5">
+                          % Tăng giảm
                           {sortConfig?.key === 'change' && (
-                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3 text-blue-600" /> : <ArrowDown className="w-3 h-3 text-blue-600" />
+                            sortConfig.direction === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-blue-600" /> : <ArrowDown className="w-3.5 h-3.5 text-blue-600" />
                           )}
-                          {sortConfig?.key !== 'change' && <ArrowUp className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100" />}
                         </div>
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-50 text-slate-700">
+                  <tbody className="divide-y divide-slate-100 text-slate-700">
                     {sortedMarketData.map((item, idx) => {
                       const colorClass = item.change < 0 ? 'text-red-500' : item.change > 0 ? 'text-green-500' : 'text-yellow-500';
+                      const bgClass = item.change > 0 ? 'bg-green-50' : item.change < 0 ? 'bg-red-50' : 'bg-yellow-50';
                       return (
-                        <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                          <td className={`p-3 font-bold ${colorClass}`}>{item.ticker}</td>
-                          <td className={`p-3 text-right font-mono font-bold ${colorClass}`}>
+                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                          <td className={`p-4 font-bold text-base whitespace-nowrap ${colorClass}`}>
+                            <span className="bg-slate-100 px-2 py-1 rounded text-slate-800 mr-2">{item.ticker}</span>
+                          </td>
+                          <td className={`p-4 text-right font-mono font-bold text-base whitespace-nowrap ${colorClass}`}>
                             {formatPrice(item.currentPrice)}
                           </td>
-                          <td className={`p-3 text-right font-mono font-bold ${colorClass}`}>
-                            {item.change > 0 ? '+' : ''}{item.change}%
+                          <td className="p-4 text-right whitespace-nowrap">
+                             <span className={`inline-block px-2.5 py-1 rounded-md font-bold text-xs ${bgClass} ${colorClass}`}>
+                               {item.change > 0 ? '+' : ''}{item.change}%
+                             </span>
                           </td>
                         </tr>
                       );
                     })}
                     {sortedMarketData.length === 0 && (
-                       <tr><td colSpan={3} className="p-8 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
+                       <tr><td colSpan={3} className="p-10 text-center text-slate-400 italic">Không có dữ liệu</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -665,33 +678,34 @@ const App: React.FC = () => {
         )}
 
         {view === 'trading' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden animate-in fade-in duration-300">
-             <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-               <h3 className="font-bold text-slate-700 text-sm md:text-base flex items-center gap-2">
-                 <ArrowRightLeft className="w-4 h-4 text-blue-600" /> Mua bán T+ 0
-               </h3>
+          <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden animate-in fade-in duration-300">
+             <div className="bg-white px-4 md:px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+               <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><ArrowRightLeft className="w-5 h-5" /></div>
+               <h3 className="font-bold text-slate-800 text-base">Hoạt động Mua Bán T+0</h3>
              </div>
-             <div className="overflow-x-auto">
-               <table className="w-full text-xs md:text-sm">
-                 <thead className="bg-white text-slate-500 border-b border-slate-100">
+             <div className="overflow-x-auto w-full">
+               <table className="w-full text-sm min-w-[700px]">
+                 <thead className="bg-slate-50/80 text-slate-500 border-b border-slate-200">
                    <tr>
-                     <th className="text-left p-3 font-bold">Khách Hàng</th>
-                     <th className="text-center p-3 font-bold">Mã chứng khoán</th>
-                     <th className="text-right p-3 font-bold">Khối lượng mua</th>
-                     <th className="text-right p-3 font-bold">Khối lượng bán</th>
+                     <th className="text-left p-4 font-bold">Khách Hàng</th>
+                     <th className="text-center p-4 font-bold">Mã CK</th>
+                     <th className="text-right p-4 font-bold">Khối lượng Mua</th>
+                     <th className="text-right p-4 font-bold">Khối lượng Bán</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-50 text-slate-700">
+                 <tbody className="divide-y divide-slate-100 text-slate-700">
                    {tradingData.map((item, idx) => (
-                     <tr key={idx} className="hover:bg-blue-50 transition-colors">
-                       <td className="p-3 font-bold text-slate-800">{item.customerName}</td>
-                       <td className="p-3 text-center font-bold text-blue-600">{item.ticker}</td>
-                       <td className="p-3 text-right font-mono font-bold text-green-600">{item.buyVol}</td>
-                       <td className="p-3 text-right font-mono font-bold text-red-500">{item.sellVol}</td>
+                     <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                       <td className="p-4 font-bold text-slate-800 whitespace-nowrap">{item.customerName}</td>
+                       <td className="p-4 text-center whitespace-nowrap">
+                         <span className="font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">{item.ticker}</span>
+                       </td>
+                       <td className="p-4 text-right font-mono font-bold text-green-600 whitespace-nowrap">{item.buyVol}</td>
+                       <td className="p-4 text-right font-mono font-bold text-red-500 whitespace-nowrap">{item.sellVol}</td>
                      </tr>
                    ))}
                    {tradingData.length === 0 && (
-                      <tr><td colSpan={4} className="p-8 text-center text-slate-400 italic">Không có dữ liệu giao dịch T+0</td></tr>
+                      <tr><td colSpan={4} className="p-10 text-center text-slate-400 italic">Chưa có giao dịch T+0 nào hôm nay</td></tr>
                    )}
                  </tbody>
                </table>
@@ -700,28 +714,28 @@ const App: React.FC = () => {
         )}
 
         {view === 'detail' && customerDetail && (
-          <div className="space-y-6 animate-in slide-in-from-right duration-300">
+          <div className="space-y-6 md:space-y-8 animate-in slide-in-from-right duration-300">
             {customerDetail.trading.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="bg-orange-50 px-4 py-3 border-b border-orange-100 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-orange-600" />
-                  <h3 className="font-bold text-orange-800 text-sm md:text-base">Giao dịch trong ngày (T0)</h3>
+              <div className="bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+                <div className="bg-gradient-to-r from-orange-50 to-white px-4 md:px-6 py-4 border-b border-orange-100 flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg text-orange-600"><ArrowRightLeft className="w-5 h-5" /></div>
+                  <h3 className="font-bold text-orange-900 text-base">Giao dịch trong ngày (T0)</h3>
                 </div>
-                <div className="p-4 overflow-x-auto">
-                  <table className="w-full text-xs md:text-sm">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[500px]">
                     <thead>
-                      <tr className="text-slate-400 border-b border-slate-100">
-                        <th className="text-left pb-2 font-medium">Mã</th>
-                        <th className="text-right pb-2 font-medium">Mua T0</th>
-                        <th className="text-right pb-2 font-medium">Bán T0</th>
+                      <tr className="text-slate-500 border-b border-slate-100 bg-slate-50/50">
+                        <th className="text-left p-3 font-semibold">Mã</th>
+                        <th className="text-right p-3 font-semibold">Mua T0</th>
+                        <th className="text-right p-3 font-semibold">Bán T0</th>
                       </tr>
                     </thead>
-                    <tbody className="text-slate-700">
+                    <tbody className="text-slate-700 divide-y divide-slate-50">
                       {customerDetail.trading.map((t, idx) => (
-                        <tr key={idx} className="border-b border-slate-50 last:border-0 hover:bg-slate-50">
-                          <td className="py-2 font-bold">{t.ticker}</td>
-                          <td className="py-2 text-right font-mono text-green-600">{t.buy0}</td>
-                          <td className="py-2 text-right font-mono text-red-500">{t.sell0}</td>
+                        <tr key={idx} className="hover:bg-slate-50">
+                          <td className="p-3 font-bold whitespace-nowrap"><span className="bg-slate-100 px-2 py-0.5 rounded">{t.ticker}</span></td>
+                          <td className="p-3 text-right font-mono text-green-600 font-bold whitespace-nowrap">{t.buy0}</td>
+                          <td className="p-3 text-right font-mono text-red-500 font-bold whitespace-nowrap">{t.sell0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -730,68 +744,75 @@ const App: React.FC = () => {
               </div>
             )}
 
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">Tổng Vốn ĐT</p>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-5">
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-2">Tổng Vốn ĐT</p>
                   <p className="text-sm md:text-lg font-black text-slate-800 break-words">{customerDetail.totalCapital}</p>
                </div>
-               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">Thị Giá Hiện Tại</p>
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-2">Thị Giá Hiện Tại</p>
                   <p className="text-sm md:text-lg font-black text-blue-600 break-words">{customerDetail.marketValue}</p>
                </div>
                
-               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">Lãi/Lỗ Trong Ngày</p>
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-2">Lãi/Lỗ Trong Ngày</p>
                   <p className={`text-lg md:text-xl font-black ${getPnlColor(customerDetail.intradayPnl)} break-words`}>
                     {customerDetail.intradayPnl}
                   </p>
                </div>
-               <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">Lãi/Lỗ Danh mục</p>
+               <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-2">Lãi/Lỗ Danh mục</p>
                   <p className={`text-lg md:text-xl font-black ${getPnlColor(customerDetail.portfolioPnl)} break-words`}>
                     {customerDetail.portfolioPnl}
                   </p>
                </div>
 
-               <div className="col-span-2 md:col-span-1 bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col justify-center">
-                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-1">% Tăng trưởng</p>
-                  <p className={`text-lg md:text-xl font-black ${getPnlColor(customerDetail.portfolioPercent)}`}>
+               <div className="col-span-2 md:col-span-1 bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-center items-center md:items-start relative overflow-hidden">
+                  <div className={`absolute right-0 top-0 p-10 opacity-5 rounded-full -mr-5 -mt-5 ${customerDetail.portfolioPercent.includes('-') ? 'bg-red-500' : 'bg-green-500'}`}></div>
+                  <p className="text-[10px] md:text-xs text-slate-400 uppercase font-bold mb-2 relative z-10">% Tăng trưởng</p>
+                  <p className={`text-2xl md:text-3xl font-black relative z-10 ${getPnlColor(customerDetail.portfolioPercent)}`}>
                     {customerDetail.portfolioPercent}
                   </p>
                </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 flex items-center gap-2">
-                  <Wallet className="w-4 h-4 text-blue-600" />
-                  <h3 className="font-bold text-blue-800 text-sm md:text-base">Danh mục đầu tư</h3>
+              <div className="lg:col-span-2 bg-white rounded-2xl shadow-md border border-slate-100 overflow-hidden">
+                <div className="bg-white px-4 md:px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+                  <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><LayoutDashboard className="w-5 h-5" /></div>
+                  <h3 className="font-bold text-slate-800 text-base">Danh mục đầu tư chi tiết</h3>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs md:text-sm">
-                    <thead className="bg-slate-50 text-slate-500">
+                <div className="overflow-x-auto w-full">
+                  <table className="w-full text-sm min-w-[750px]">
+                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
                       <tr>
-                        <th className="text-left p-3 font-semibold whitespace-nowrap">Mã</th>
-                        <th className="text-right p-3 font-semibold whitespace-nowrap">KL</th>
-                        <th className="text-right p-3 font-semibold whitespace-nowrap">Giá Mua</th>
-                        <th className="text-right p-3 font-semibold whitespace-nowrap">Giá TT</th>
-                        <th className="text-right p-3 font-semibold whitespace-nowrap">Lãi/Lỗ</th>
-                        <th className="text-right p-3 font-semibold whitespace-nowrap">%</th>
+                        <th className="text-left p-4 font-semibold whitespace-nowrap">Mã CK</th>
+                        <th className="text-right p-4 font-semibold whitespace-nowrap">KL Nắm giữ</th>
+                        <th className="text-right p-4 font-semibold whitespace-nowrap">Giá Vốn</th>
+                        <th className="text-right p-4 font-semibold whitespace-nowrap">Giá TT</th>
+                        <th className="text-right p-4 font-semibold whitespace-nowrap">Lãi/Lỗ</th>
+                        <th className="text-right p-4 font-semibold whitespace-nowrap">%</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
+                    <tbody className="divide-y divide-slate-50 text-slate-700">
                       {customerDetail.portfolio.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                          <td className="p-3 font-bold text-blue-600">{item.ticker}</td>
-                          <td className="p-3 text-right font-mono">{item.total}</td>
-                          <td className="p-3 text-right font-mono">{item.avgPrice}</td>
-                          <td className="p-3 text-right font-mono">{item.marketPrice}</td>
-                          <td className={`p-3 text-right font-mono font-bold ${getPnlColor(item.pnl)}`}>{item.pnl}</td>
-                          <td className={`p-3 text-right font-mono font-bold ${getPnlColor(item.percent)}`}>{item.percent}</td>
+                          <td className="p-4 font-bold text-blue-600 whitespace-nowrap">
+                            <span className="bg-blue-50 px-2 py-1 rounded">{item.ticker}</span>
+                          </td>
+                          <td className="p-4 text-right font-mono whitespace-nowrap">{item.total}</td>
+                          <td className="p-4 text-right font-mono whitespace-nowrap">{item.avgPrice}</td>
+                          <td className="p-4 text-right font-mono whitespace-nowrap">{item.marketPrice}</td>
+                          <td className={`p-4 text-right font-mono font-bold whitespace-nowrap ${getPnlColor(item.pnl)}`}>{item.pnl}</td>
+                          <td className="p-4 text-right font-mono whitespace-nowrap">
+                             <span className={`inline-block px-2 py-1 rounded-md font-bold text-xs ${item.percent.includes('-') ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                               {item.percent}
+                             </span>
+                          </td>
                         </tr>
                       ))}
                       {customerDetail.portfolio.length === 0 && (
-                        <tr><td colSpan={6} className="p-4 text-center text-slate-400 italic">Chưa có cổ phiếu nào</td></tr>
+                        <tr><td colSpan={6} className="p-10 text-center text-slate-400 italic">Chưa có cổ phiếu nào trong danh mục</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -799,9 +820,9 @@ const App: React.FC = () => {
               </div>
 
               {customerDetail.weights.length > 0 && (
-                <div className="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-4 md:p-6 flex flex-col">
-                   <h3 className="text-xs md:text-sm font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
-                     <PieChartIcon className="w-4 h-4" /> Phân bổ danh mục
+                <div className="lg:col-span-1 bg-white rounded-2xl shadow-md border border-slate-100 p-4 md:p-6 flex flex-col h-fit">
+                   <h3 className="text-sm font-bold text-slate-800 uppercase mb-6 flex items-center gap-2 pb-3 border-b border-slate-100">
+                     <PieChartIcon className="w-4 h-4 text-slate-400" /> Phân bổ danh mục
                    </h3>
                    <div className="flex-1 min-h-[250px] md:min-h-[300px]">
                      <ResponsiveContainer width="100%" height="100%">
@@ -815,20 +836,24 @@ const App: React.FC = () => {
                           innerRadius={60}
                           outerRadius={80}
                           paddingAngle={5}
+                          cornerRadius={4}
                         >
                           {customerDetail.weights.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="transparent" />
                           ))}
                         </Pie>
                         <Tooltip formatter={(value: number) => value.toLocaleString('vi-VN')} />
                       </PieChart>
                      </ResponsiveContainer>
                    </div>
-                   <div className="grid grid-cols-3 gap-2 mt-4">
+                   <div className="grid grid-cols-2 gap-2 mt-4">
                       {customerDetail.weights.map((w, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{backgroundColor: COLORS[i % COLORS.length]}} />
-                          <span className="text-[10px] md:text-xs font-bold text-slate-600 truncate">{w.ticker} ({w.percent.toFixed(1)}%)</span>
+                        <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+                          <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{backgroundColor: COLORS[i % COLORS.length]}} />
+                          <div className="flex flex-col overflow-hidden">
+                             <span className="text-xs font-bold text-slate-700 truncate">{w.ticker}</span>
+                             <span className="text-[10px] text-slate-500 font-mono">{w.percent.toFixed(1)}%</span>
+                          </div>
                         </div>
                       ))}
                    </div>
@@ -839,31 +864,38 @@ const App: React.FC = () => {
         )}
 
         {view === 'admin' && (
-          <div className="animate-in fade-in zoom-in duration-300 max-w-md mx-auto">
+          <div className="animate-in fade-in zoom-in duration-300 max-w-md mx-auto pt-10">
              {!isAdminAuthenticated ? (
-               <div className="bg-white p-6 rounded-2xl shadow-lg border border-slate-100 text-center space-y-4">
-                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-blue-600"><Lock className="w-6 h-6" /></div>
-                 <h2 className="text-lg font-bold text-slate-800">Xác thực Admin</h2>
+               <div className="bg-white p-8 rounded-3xl shadow-xl border border-slate-100 text-center space-y-6">
+                 <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto text-blue-600 shadow-inner"><Lock className="w-8 h-8" /></div>
+                 <div>
+                    <h2 className="text-xl font-bold text-slate-800">Khu vực quản trị</h2>
+                    <p className="text-slate-500 text-sm mt-1">Vui lòng xác thực quyền truy cập</p>
+                 </div>
                  <input 
                    type="password" 
                    value={adminPasswordInput}
                    onChange={e => setAdminPasswordInput(e.target.value)}
-                   className="w-full p-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center"
-                   placeholder="Nhập mật khẩu..."
+                   className="w-full p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-center text-lg tracking-widest bg-slate-50"
+                   placeholder="••••••••"
                  />
-                 <button onClick={verifyAdmin} className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold active:scale-95 transition-transform">Đăng nhập</button>
+                 <button onClick={verifyAdmin} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold active:scale-95 transition-transform hover:bg-blue-700 shadow-lg shadow-blue-200">Đăng nhập Admin</button>
                </div>
              ) : (
                <div className="space-y-6">
                  {/* Google Sheet Config */}
-                 <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-sm font-bold text-slate-700 mb-2">Cấu hình ID Google Sheet</h3>
-                    <input 
-                      className="w-full p-2 text-xs border border-slate-200 rounded-lg bg-slate-50 mb-2 font-mono"
-                      value={config.spreadsheetId}
-                      onChange={(e) => saveConfig({...config, spreadsheetId: e.target.value})}
-                    />
-                    <div className="flex justify-between items-center mt-4">
+                 <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100">
+                    <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2"><Settings className="w-4 h-4" /> Cấu hình hệ thống</h3>
+                    <div className="mb-4">
+                       <label className="text-xs font-bold text-slate-400 uppercase mb-1 block">Google Sheet ID</label>
+                       <input 
+                         className="w-full p-3 text-xs border border-slate-200 rounded-xl bg-slate-50 font-mono text-slate-600 focus:ring-2 focus:ring-blue-500 outline-none"
+                         value={config.spreadsheetId}
+                         onChange={(e) => saveConfig({...config, spreadsheetId: e.target.value})}
+                       />
+                    </div>
+                    
+                    <div className="flex justify-between items-center mb-3">
                        <div className="flex items-center gap-2">
                          <h3 className="text-sm font-bold text-slate-700">Danh sách GID Khách hàng</h3>
                          {(isRefreshing || loading) && <Loader2 className="w-3 h-3 animate-spin text-blue-500" />}
@@ -873,74 +905,71 @@ const App: React.FC = () => {
                            const newGid = prompt("Nhập GID sheet mới:");
                            if(newGid) saveConfig({...config, customerSheets: [...config.customerSheets, newGid]});
                          }}
-                         className="flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200"
+                         className="flex items-center gap-1.5 text-xs bg-blue-600 text-white px-3 py-2 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm"
                        >
-                         <Plus className="w-3 h-3" /> Thêm
+                         <Plus className="w-3.5 h-3.5" /> Thêm mới
                        </button>
                     </div>
-                    <div className="mt-3 space-y-2 max-h-60 overflow-y-auto">
+                    <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
                       {config.customerSheets.map((gid, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100 group hover:border-blue-200 transition-colors">
                           <span className="text-xs font-mono text-slate-600 truncate flex-1 mr-2 flex items-center gap-2">
-                             {gid} {gid === '1181732765' ? '(Bị loại bỏ)' : ''}
-                             {/* Show checkmark if this GID exists in loaded customers, proving sync worked */}
-                             {customers.some(c => c.id === gid) && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                             <span className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-[10px] font-bold border border-slate-100 text-slate-400">{idx + 1}</span>
+                             {gid} 
+                             {gid === '1181732765' ? <span className="text-red-500 font-bold">(Cấm)</span> : ''}
+                             {customers.some(c => c.id === gid) && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                           </span>
                           {gid !== '1181732765' && (
-                            <button onClick={() => saveConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-red-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={() => saveConfig({...config, customerSheets: config.customerSheets.filter(g => g !== gid)})} className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                           )}
                         </div>
                       ))}
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-2 italic text-center">
-                       {isRefreshing ? "Đang đồng bộ dữ liệu mới..." : "Dữ liệu tự động đồng bộ khi thay đổi cấu hình."}
-                    </p>
                  </div>
 
                  {/* Password Management */}
-                 <div className="bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">
-                       <Key className="w-4 h-4" /> Quản lý mật khẩu truy cập Web
+                 <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100">
+                    <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                       <Key className="w-4 h-4" /> Mật khẩu truy cập Web
                     </h3>
-                    <div className="flex gap-2 mb-3">
+                    <div className="flex gap-2 mb-4">
                        <input 
-                         className="flex-1 p-2 text-xs border border-slate-200 rounded-lg bg-slate-50 font-mono focus:ring-1 focus:ring-blue-500 outline-none"
-                         placeholder="Nhập mật khẩu mới..."
+                         className="flex-1 p-3 text-sm border border-slate-200 rounded-xl bg-slate-50 font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                         placeholder="Nhập mật khẩu..."
                          value={newAccessPassword}
                          onChange={(e) => setNewAccessPassword(e.target.value)}
                        />
                        <button 
                          onClick={addAccessPassword}
-                         className="bg-green-600 text-white px-3 rounded-lg font-bold text-xs hover:bg-green-700 disabled:opacity-50"
+                         className="bg-green-600 text-white px-4 rounded-xl font-bold text-sm hover:bg-green-700 disabled:opacity-50 shadow-sm"
                          disabled={!newAccessPassword}
                        >
                          Thêm
                        </button>
                     </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
                       {config.accessPasswords.map((pwd, idx) => (
-                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          <span className="text-xs font-mono text-slate-800 font-bold ml-2 tracking-wider">{pwd}</span>
-                          <button onClick={() => removeAccessPassword(pwd)} className="text-red-400 hover:text-red-600 p-1"><Trash2 className="w-4 h-4" /></button>
+                        <div key={idx} className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <span className="text-sm font-mono text-slate-800 font-bold ml-2 tracking-wider">{pwd}</span>
+                          <button onClick={() => removeAccessPassword(pwd)} className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       ))}
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-2 italic">* Các mật khẩu này dùng để đăng nhập vào giao diện chính của Web.</p>
                  </div>
 
-                 <div className="space-y-3">
+                 <div className="space-y-3 pt-4">
                    <button 
                      onClick={() => handleLogout()}
-                     className="w-full bg-slate-200 text-slate-700 py-3 rounded-xl font-bold active:scale-95 transition-transform"
+                     className="w-full bg-slate-100 text-slate-600 py-3.5 rounded-xl font-bold active:scale-95 transition-transform hover:bg-slate-200"
                    >
-                     Đăng xuất Admin & Khóa màn hình
+                     Đăng xuất & Khóa màn hình
                    </button>
                    <button 
                      onClick={() => {
                        setView('home');
                        fetchData();
                      }}
-                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform"
+                     className="w-full bg-blue-600 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-blue-200 active:scale-95 transition-transform hover:bg-blue-700"
                    >
                      Quay về trang chủ
                    </button>

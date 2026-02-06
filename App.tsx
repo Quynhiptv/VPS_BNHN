@@ -521,7 +521,8 @@ const App: React.FC = () => {
                 <h2 className="text-base font-bold text-slate-800 mb-6 flex items-center gap-2 border-b border-slate-100 pb-3">
                   <PieChartIcon className="w-5 h-5 text-purple-600" /> Tỷ trọng vốn
                 </h2>
-                <div className="flex-1 min-h-[300px]">
+                <div className="w-full h-[300px]">
+                  {teamDistribution.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -546,6 +547,11 @@ const App: React.FC = () => {
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm italic">
+                      Chưa có dữ liệu biểu đồ
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -824,7 +830,7 @@ const App: React.FC = () => {
                    <h3 className="text-sm font-bold text-slate-800 uppercase mb-6 flex items-center gap-2 pb-3 border-b border-slate-100">
                      <PieChartIcon className="w-4 h-4 text-slate-400" /> Phân bổ danh mục
                    </h3>
-                   <div className="flex-1 min-h-[250px] md:min-h-[300px]">
+                   <div className="w-full h-[300px]">
                      <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie

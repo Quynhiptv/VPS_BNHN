@@ -224,7 +224,7 @@ export const getCustomerDetail = async (spreadsheetId: string, sheetName: string
   
   let totalValueForWeights = 0;
 
-  // UPDATED RANGE: Rows 2 to 12 (Indices 1 to 11)
+  // Range: Rows 2 to 12 (Indices 1 to 11)
   const START_IDX = 1; 
   const END_IDX = 12;
 
@@ -306,7 +306,7 @@ export const getAggregatedTradingData = async (spreadsheetId: string, sheetIds: 
   const COL_U_BUY = 20;    // Index 20 (Column U)
   const COL_V_SELL = 21;   // Index 21 (Column V)
 
-  // Scan range similar to Customer Detail
+  // Range: Rows 2 to 12 (Indices 1 to 11)
   const START_IDX = 1; 
   const END_IDX = 12;
 
@@ -362,6 +362,7 @@ export const getUniqueTickersFromCustomers = async (spreadsheetId: string, sheet
   for (const result of customerResults) {
     if (result.status === 'fulfilled') {
       const data = result.value;
+      
       for (let i = CUSTOMER_START_IDX; i < CUSTOMER_END_IDX; i++) {
         if (i >= data.length) break;
         const row = data[i];
